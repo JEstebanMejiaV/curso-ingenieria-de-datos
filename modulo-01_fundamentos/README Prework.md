@@ -63,19 +63,6 @@ airflow version
 
 ---
 
-## 📘 Módulos del curso
-
-1. **Introducción a la Ingeniería de Datos**
-2. **Fundamentos de Bases de Datos y SQL**
-3. **ETL y Modelado Dimensional**
-4. **Orquestación con Apache Airflow**
-5. **Transformaciones con dbt**
-6. **Infraestructura de datos con Docker y Cloud**
-7. **Data Quality y Observabilidad**
-8. **Proyecto Final Integrador**
-
----
-
 ## 🧠 Sugerencias
 
 - Crea un directorio llamado `~/Desktop/Git/curso-ingenieria-de-datos` para mantener el repositorio limpio.
