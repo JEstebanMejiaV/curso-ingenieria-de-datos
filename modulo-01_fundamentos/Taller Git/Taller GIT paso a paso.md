@@ -269,7 +269,7 @@ git push -u origin equipo-02-<INI>
 - **Entrega:** PR fusionado + captura del conflicto resuelto.
 
 ### Protección de `main` (para el owner)
-- En **Settings → Branches → Branch protection rules** para `main`: exigir **1 review** y (opcional) **status checks**.
+- En **Settings -> Branches -> Branch protection rules** para `main`: exigir **1 review** y (opcional) **status checks**.
 - Intentar `git push origin main` debe **fallar** (sin PR).
 - Solución: abrir PR desde la rama del equipo.
 - **Entrega:** captura del error y PR aprobado.
@@ -288,10 +288,6 @@ git branch -D equipo-XX-<INI>
 - Crea un **Issue** (tarea concreta en tu subcarpeta).
 - Crea un PR que diga `Closes #<n>` y ejecuta el cambio.
 
-```
-Activa en *Branch protection*:**Require status checks** (CI) para forzar PRs con check verde.
-
----
 
 ## Convenciones del taller
 - **Ruta fija**: `modulo-01_fundamentos/Taller Git/`
@@ -317,15 +313,8 @@ Activa en *Branch protection*:**Require status checks** (CI) para forzar PRs con
 
 
 
----
-
-
 ## Comandos útiles
-```bash
 
-```
-
----
 ```bash
 
 # Trabajo con repo local
@@ -366,3 +355,5 @@ git fetch upstream
 git checkout main
 git pull --rebase upstream main
 git push origin main
+
+```
