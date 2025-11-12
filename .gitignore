@@ -205,3 +205,58 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# Datos y formatos comunes
+# Tabulares
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.ods
+
+# Columnar / binarios analíticos
+*.parquet
+*.parq
+*.orc
+*.avro
+*.feather
+*.arrow
+*.ipc
+
+# Bases de datos y dumps
+*.sqlite
+*.sqlite3
+*.db
+*.mdb
+*.accdb
+*.sql
+*.dump
+*.bak
+
+# Comprimidos y empaquetados
+*.zip
+*.7z
+*.rar
+*.tar
+*.tgz
+
+# Artefactos de jobs Spark/Hadoop/Delta
+**/_SUCCESS
+**/_started_*
+**/_committed_*
+**/_delta_log/
+**/.crc
+spark-warehouse/
+warehouse/
+**/checkpoint*/
+**/_spark_metadata/
+
+# Ignorar todo dentro de data/ excepto muestras y README
+data/**
+!data/README.md
+!data/.gitkeep
+!data/samples/
+!data/samples/**
