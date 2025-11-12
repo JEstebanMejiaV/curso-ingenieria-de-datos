@@ -1,16 +1,16 @@
-# XM/SiMEM Data Engineering Starter (Colombia)
+# Datos XM/SiMEM (Colombia) starter
 
 Stack listo para enseñar **OLTP (PostgreSQL + TimescaleDB)**, **OLAP (ClickHouse)**, **Documentos (MongoDB)**, 
 **NoSQL clave-valor con partición (DynamoDB Local)** y **Lakehouse (Iceberg sobre MinIO + Trino)** usando datos 
 abiertos del **mercado eléctrico colombiano (XM/SiMEM)**.
 
 ## Servicios (via Docker Compose)
-- **TimescaleDB** (PostgreSQL + extensión) → modelado 3FN, *hypertables*, agregados continuos.
-- **ClickHouse** → OLAP columnar de alto rendimiento.
-- **MongoDB** → documentos/JSON (ingesta cruda + agregaciones).
-- **DynamoDB Local** → tablas particionadas (PK/SK) para acceso clave-valor.
-- **MinIO** → S3 local para *data lake*.
-- **Trino** → consultas SQL unificadas + **Iceberg** con *catalog JDBC* (sin Hive Metastore).
+- **TimescaleDB** (PostgreSQL + extensión): modelado 3FN, *hypertables*, agregados continuos.
+- **ClickHouse**:  OLAP columnar de alto rendimiento.
+- **MongoDB**:  documentos/JSON (ingesta cruda + agregaciones).
+- **DynamoDB Local** : tablas particionadas (PK/SK) para acceso clave-valor.
+- **MinIO**:  S3 local para *data lake*.
+- **Trino** : consultas SQL unificadas + **Iceberg** con *catalog JDBC* (sin Hive Metastore).
 
 > **Requisitos**: Docker/Docker Compose, Python 3.10+, `pip`.
 
@@ -84,7 +84,7 @@ Este starter funciona con cualquier recurso público **SiMEM** que exponga un `d
 ```
 xm-simem-starter/
 ├─ docker-compose.yml
-├─ .env.example  → copia a .env
+├─ .env.example  # copia a .env
 ├─ README.md
 ├─ init/
 │  └─ minio-create-bucket.sh
@@ -111,10 +111,3 @@ xm-simem-starter/
    └─ raw/  (aquí se guardan los Parquet por dataset y fecha)
 ```
 
----
-
-## Tips didácticos
-- Compara el mismo KPI (p. ej. **PBE** promedio semanal, **demanda** pico diario) entre ClickHouse y Trino.
-- Define **retención** y **continuous aggregates** en Timescale.
-- En Dynamo, diseña PK/SK por patrón `REGION#YYYYMMDD` y `METRIC#...` para consultas eficientes.
-- En Mongo, indexa `{fecha: 1, region: 1}` y crea *pipelines* de agregación.
