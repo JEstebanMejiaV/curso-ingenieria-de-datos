@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: sales-db
+    environment:
+      POSTGRES_USER: sales_user
+      POSTGRES_PASSWORD: sales_pass
+      POSTGRES_DB: sales_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: sales-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+
+  pipeline:
+    build: .
+    image: sales-pipeline:latest
+    container_name: sales-pipeline
+    depends_on:
+      - db
+    environment:
+      DB_USER: sales_user
+      DB_PASSWORD: sales_pass
+      DB_HOST: db
+      DB_NAME: sales_db
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  db_data:
