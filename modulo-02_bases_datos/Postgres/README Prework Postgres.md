@@ -1,29 +1,29 @@
-# 🧠 Curso de Ingeniería de Datos – Guía de Instalación y Prework
+# Curso de Ingeniería de Datos – Guía de Instalación y Prework
 
 ---
 
-## 🧰 Herramientas de Desarrollo
+## Herramientas de Desarrollo
 
-🟦 **Git**  
+**Git**  
 _Control de versiones y clonación de repositorios._
 
-🟪 **PostgreSQL**  
+**PostgreSQL**  
 _Motor de base de datos relacional y de código abierto, robusto y confiable._
 
-⬛ **PSQL (CLI)**  
+**PSQL (CLI)**  
 _Cliente de línea de comandos para interactuar directamente con la base de datos._
 
-🐳 **Docker + Docker Compose**  
+**Docker + Docker Compose**  
 _Ejecuta PostgreSQL y PGAdmin sin instalación manual._
 
-💻 **PGAdmin / DBeaver / VS Code**  
+**PGAdmin / DBeaver / VS Code**  
 _Herramientas visuales para explorar, consultar y modelar datos._
 
 ---
 
-## 🧾 Instalación en 3 pasos
+## Instalación en 3 pasos
 
-### 1️⃣ Clonar el Repositorio del Curso
+### Clonar el Repositorio del Curso
 
 Abre tu terminal y ejecuta:
 
@@ -36,9 +36,9 @@ cd curso-ingenieria-datos
 
 ---
 
-### 2️⃣ Iniciar PostgreSQL
+### 2️Iniciar PostgreSQL
 
-#### 🐳 **Opción A: Usando Docker (recomendada)**
+#### **Opción A: Usando Docker (recomendada)**
 
 1. Instala [Docker Desktop](https://www.docker.com/products/docker-desktop)  
 2. Copia el archivo de entorno de ejemplo:
@@ -77,7 +77,7 @@ docker compose stop
 
 ---
 
-#### 🧩 **Opción B: Instalación local (manual)**
+#### **Opción B: Instalación local (manual)**
 
 1. Instala PostgreSQL:  
    - **Windows/Linux:** descarga desde <https://www.postgresql.org/download/>
@@ -98,21 +98,20 @@ pg_restore -U <usuario> -d <nombre_db> -h <host> -p <puerto> data.dump
 
 ---
 
-### 3️⃣ Conectarse a PostgreSQL
+### 3️Conectarse a PostgreSQL
 
-#### 🌐 **Si usas PGAdmin (vía Docker)**
+#### **Si usas PGAdmin (vía Docker)**
 
 1. Abre <http://localhost:5050>  
 2. Ingresa con las credenciales del archivo `.env`
 3. Crea un nuevo servidor:
-   - **General → Nombre:** `Curso-Ingenieria-Datos`
-   - **Connection →**
+   - **General> Nombre:** `Curso-Ingenieria-Datos`
+   - **Connection**
      - Host: `my-postgres-container`
      - Puerto: `5432`
      - Base de datos: `postgres`
-     - Usuario: `postgres`
-     - Contraseña: `postgres`
-     - ✅ Guarda la contraseña
+     - Usuario PgAdmi: `postgres@postgres.com`
+     - Contraseña PgAdmi: `postgres`
 4. Guarda los cambios y conecta.  
 5. En el panel izquierdo, expande:
    ```
@@ -121,7 +120,7 @@ pg_restore -U <usuario> -d <nombre_db> -h <host> -p <puerto> data.dump
 
 ---
 
-#### 💻 **Si usas un cliente de escritorio (DBeaver, DataGrip, VS Code, etc.)**
+#### **Si usas un cliente de escritorio (DBeaver, DataGrip, VS Code, etc.)**
 
 Configura una nueva conexión PostgreSQL con los siguientes datos:
 
@@ -133,13 +132,13 @@ Configura una nueva conexión PostgreSQL con los siguientes datos:
 | Usuario | postgres |
 | Contraseña | postgres |
 
-✅ Prueba la conexión y guárdala.
+Prueba la conexión y guárdala.
 
 ---
 
-## 🧩 Problemas Frecuentes y Soluciones
+## Problemas Frecuentes y Soluciones
 
-### 📦 Las tablas no aparecen
+### Las tablas no aparecen
 - Asegúrate de haber restaurado correctamente `data.dump`.
 - Si usas Docker, entra al contenedor y verifica:
 
@@ -150,7 +149,7 @@ psql -U postgres -d postgres -c '\dt'
 
 ---
 
-### ❌ “Connection refused” o no se puede conectar
+### “Connection refused” o no se puede conectar
 - Verifica que Docker esté corriendo.
 - Revisa el host (`localhost` o `my-postgres-container`).
 - Reinicia los contenedores:
@@ -161,7 +160,7 @@ make restart
 
 ---
 
-### 🔄 Puerto 5432 en uso
+### Puerto 5432 en uso
 Puede haber otro servicio usando el puerto.
 
 **macOS/Linux**
@@ -178,7 +177,7 @@ taskkill /PID <PID> /F
 
 ---
 
-### 🚪 Error al iniciar sesión en PGAdmin
+### Error al iniciar sesión en PGAdmin
 Usa las credenciales del archivo `.env`:
 
 ```env
@@ -194,7 +193,7 @@ docker compose up -d
 
 ---
 
-## 🔧 Comandos Útiles de Docker
+## Comandos Útiles de Docker
 
 | Comando | Descripción |
 |----------|--------------|
@@ -207,7 +206,7 @@ docker compose up -d
 
 ---
 
-## 🧪 Verificación Final
+## Verificación Final
 
 Ejecuta estos comandos para validar tu entorno:
 
