@@ -235,6 +235,18 @@ git log --oneline -n 5
 
 Observa cómo `revert` crea un nuevo commit que revierte el cambio sin borrar historial.
 
+#### ¿Qué es HEAD?
+
+HEAD es simplemente dónde estás parado ahora en el historial:
+
+HEAD: el último commit de tu rama actual.
+
+HEAD~1: el commit anterior al último.
+
+HEAD~2: dos commits hacia atrás.
+
+HEAD^: normalmente es lo mismo que HEAD~1.
+
 #### 3. `git restore`: volver un archivo al último commit
 
 Simula un error :
@@ -297,7 +309,7 @@ El escenario típico:
 
 Puedes reutilizar tu propio repo `curso-ingenieria-de-datos` como “plataforma de datos” o crear uno nuevo.
 
-**Opción 1 (fork desde un repo docente):**
+**Opción 1 (fork desde el repo docente):**
 
 1. Haz fork del repo del curso en tu cuenta.
 2. Clona tu fork:
@@ -331,7 +343,7 @@ mkdir -p "modulo-01_fundamentos/Taller Git/equipo-01-<INI>/pipelines"
 mkdir -p "modulo-01_fundamentos/Taller Git/equipo-01-<INI>/docs"
 ```
 
-Crea algunos archivos con contexto de datos:
+Crea algunos archivos:
 
 ```bash
 echo "# Plataforma de datos del equipo-01-<INI>"   > "modulo-01_fundamentos/Taller Git/equipo-01-<INI>/README_<INI>.md"
@@ -356,8 +368,6 @@ Abre un Pull Request desde `equipo-01-<INI>` hacia `main` en GitHub.
 ---
 
 ### B3. Ejercicios de colaboración 
-
-Algunas ideas de ejercicios guiados que puedes hacer sobre estas carpetas:
 
 1. **PR mínimo **
 
