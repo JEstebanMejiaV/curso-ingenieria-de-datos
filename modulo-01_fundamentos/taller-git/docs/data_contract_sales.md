@@ -16,6 +16,6 @@ Este documento describe la tabla de ventas que genera el pipeline `etl_sales_dai
 - `amount` debe ser mayor o igual que cero.
 - `order_date` debe ser una fecha válida en formato `YYYY-MM-DD`.
 - El archivo raw debe contener cabeceras exactamente iguales a los nombres de columna.
-- Esto es un prueba
+- Esto es un prueba en rama artificial
 
 Durante el taller irás ampliando este contrato para reflejar nuevas columnas y reglas de negocio.
