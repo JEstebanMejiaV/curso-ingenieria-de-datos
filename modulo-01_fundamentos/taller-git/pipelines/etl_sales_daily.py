@@ -32,15 +32,6 @@ def run_etl():
         print("No hay filas válidas para procesar.")
         return
 
-    fieldnames = rows_in[0].keys()
-    with OUTPUT_FILE.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows_in)
-
-    print(f"Filas procesadas: {len(rows_in)}")
-    print(f"Archivo limpio escrito en {OUTPUT_FILE}")
-
 
 if __name__ == "__main__":
     run_etl()
