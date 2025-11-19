@@ -1,6 +1,6 @@
 # Taller Git para Ingeniería de Datos
 
-Este repositorio acompaña un taller práctico de 2 a 3 horas pensado para estudiantes de Ingeniería de Datos. La idea es practicar Git, pero siempre en un contexto que se parezca al trabajo real de un equipo de datos: pipelines de ingesta, contratos de datos, carpetas `data/raw` y `data/processed`, etc.
+Este repositorio acompaña un taller práctico de 2 a 3 horas pensado para estudiantes de Ingeniería de Datos.
 
 ## Escenario
 
@@ -40,10 +40,10 @@ Opcional pero recomendado:
 - Instalar extensión de Git en VS Code.
 - Tener una cuenta en GitHub para la parte de trabajo remoto.
 
-## Estructura de este repo
+## Estructura de los archivos del taller
 
 ```bash
-git-data-eng-workshop/
+taller-git/
 ├─ README.md
 ├─ data/
 │  ├─ raw/
@@ -63,7 +63,7 @@ git-data-eng-workshop/
 - `docs/data_contract_sales.md`: contrato de datos con la definición de columnas, tipos y reglas básicas.
 - `infra/airflow_dag_example.py`: pseudocódigo de un DAG que orquesta el pipeline.
 
-> Nota: en las instrucciones se usa el marcador `<INI>` para tus iniciales (ej.: `JEM`). No lo pongas en nombres de archivos de verdad en Windows; úsalo solo dentro de los textos o como parte del contenido.
+⚠️ > Nota: en las instrucciones se usa el marcador `<INI>` para tus iniciales (ej.: `JEM`). No lo pongas en nombres de archivos de verdad en Windows; úsalo solo dentro de los textos o como parte del contenido.
 
 ---
 
@@ -72,7 +72,7 @@ git-data-eng-workshop/
 ### A1. Crear el repo y primer snapshot del proyecto
 
 1. Clona o descomprime este repositorio en tu máquina.
-2. Desde la carpeta raíz `git-data-eng-workshop/` inicializa Git:
+2. Desde la carpeta raíz `git-taller/` inicializa Git:
 
 ```bash
 git init
@@ -139,20 +139,13 @@ Vas a crear una rama donde experimentarás una nueva forma de particionar los da
 ```bash
 git switch -c feature/particionado-ventas-<INI>
 ```
+2. Añade un comentario en `docs/data_contract_sales.md` indicando la estrategia de particionado.
 
-2. Modifica `pipelines/etl_sales_daily.py` para que:
-
-- Escriba la salida en una ruta que incluya una carpeta por fecha (ej.: `data/processed/2025-01-01/`).
-- O al menos agrega comentarios que describan cómo sería el particionamiento.
-
-3. Añade un comentario en `docs/data_contract_sales.md` indicando la estrategia de particionado.
-
-4. Crea el commit:
+3. Crea el commit:
 
 ```bash
 git add pipelines/etl_sales_daily.py docs/data_contract_sales.md
 git commit -m "Definir nuevo particionamiento de datos de ventas (<INI>)"
-git log --oneline
 ```
 
 Esta rama representa una **feature** aún no aprobada en producción.
