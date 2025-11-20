@@ -14,6 +14,7 @@ Aprender la sintaxis esencial de Python y SQL y resolver tareas reales de manipu
 - Lectura y escritura de archivos
 - Introducción a `pandas` y `numpy`
 
+
 **Recursos con práctica:**
 - [Python para Principiantes — Microsoft Learn](https://learn.microsoft.com/es-es/training/paths/beginner-python/)  
 - [Curso completo de Python — freeCodeCamp (YouTube, 4h)](https://www.youtube.com/watch?v=rfscVS0vtbw)  

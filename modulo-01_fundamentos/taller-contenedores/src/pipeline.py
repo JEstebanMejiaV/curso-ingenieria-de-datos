@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 
 
@@ -13,7 +13,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_PATH = OUTPUT_DIR / "sales_clean.csv"
 
 
-def wait_for_db(engine, max_tries: int = 10, delay_seconds: int = 5) -> None:
+def wait_for_db(engine, max_tries: int = 3, delay_seconds: int = 5) -> None:
     """
     Espera a que la base de datos esté disponible.
     Intenta conectarse varias veces antes de rendirse.
@@ -22,7 +22,12 @@ def wait_for_db(engine, max_tries: int = 10, delay_seconds: int = 5) -> None:
     while tries < max_tries:
         try:
             with engine.connect() as conn:
-                conn.execute("SELECT 1")
+                # Opción 1: usando text()
+                conn.execute(text("SELECT 1"))
+
+                # Opción 2 alternativa:
+                # conn.exec_driver_sql("SELECT 1")
+
             print("Base de datos disponible.")
             return
         except OperationalError as exc:
@@ -33,14 +38,17 @@ def wait_for_db(engine, max_tries: int = 10, delay_seconds: int = 5) -> None:
             )
             time.sleep(delay_seconds)
 
-    raise RuntimeError("No fue posible conectar a la base de datos después de varios intentos.")
+    raise RuntimeError(
+        "No fue posible conectar a la base de datos después de varios intentos."
+    )
 
 
 def main():
     # 1. Cargar datos
     print(f"Cargando datos desde: {INPUT_PATH}")
     if not INPUT_PATH.exists():
-        raise FileNotFoundError(f"No se encontró el archivo de entrada: {INPUT_PATH}")
+        raise FileNotFoundError(
+            f"No se encontró el archivo de entrada: {INPUT_PATH}")
 
     df = pd.read_csv(INPUT_PATH)
 
