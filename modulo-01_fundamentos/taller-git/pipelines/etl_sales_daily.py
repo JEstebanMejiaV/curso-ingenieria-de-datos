@@ -4,7 +4,7 @@ Pequeño pipeline de ejemplo para el taller de Git orientado a Ingeniería de Da
 Este script no pretende ser un ETL completo; solo da contexto.
 Ahora usa pandas para facilitar transformaciones y filtrados.
 """
-
+# Esta es una prueba 
 from pathlib import Path
 import pandas as pd
 
