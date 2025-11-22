@@ -84,6 +84,7 @@ El archivo `docker-compose.yml` define tres servicios:
 - `pgadmin`: interfaz gráfica para administrar la base de datos.
 - `pipeline`: contenedor con el script de limpieza y carga.
 
+Levantar todo:
 
 
 Levantar todo:

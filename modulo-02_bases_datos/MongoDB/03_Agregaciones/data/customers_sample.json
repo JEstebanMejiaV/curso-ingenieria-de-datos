@@ -1,0 +1,34 @@
+[
+  {
+    "customer_id": "CUST-001",
+    "name": "Ana Pérez",
+    "city": "Bogotá",
+    "segment": "retail",
+    "signup_date": "2024-12-01T09:00:00Z",
+    "test_user": false
+  },
+  {
+    "customer_id": "CUST-002",
+    "name": "Carlos Gómez",
+    "city": "Medellín",
+    "segment": "retail",
+    "signup_date": "2024-12-05T11:30:00Z",
+    "test_user": false
+  },
+  {
+    "customer_id": "CUST-003",
+    "name": "Oficina Central SA",
+    "city": "Barranquilla",
+    "segment": "corporate",
+    "signup_date": "2024-12-10T15:00:00Z",
+    "test_user": false
+  },
+  {
+    "customer_id": "CUST-004",
+    "name": "Laura Torres",
+    "city": "Cali",
+    "segment": "retail",
+    "signup_date": "2024-12-15T08:45:00Z",
+    "test_user": true
+  }
+]
