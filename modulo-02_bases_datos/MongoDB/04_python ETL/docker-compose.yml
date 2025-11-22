@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongo:/data/db
+
+  etl:
+    build: .
+    container_name: mongodb-etl
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    volumes:
+      - ./data:/app/data
