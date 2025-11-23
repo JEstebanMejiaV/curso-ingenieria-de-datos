@@ -2,7 +2,7 @@
 # Postgres
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_DB=postgres
+POSTGRES_DB=olist
 POSTGRES_PORT=5432
 
 # PGAdmin
@@ -13,4 +13,3 @@ PGADMIN_PORT=5050
 # Nombres de contenedor (coinciden con la guía)
 POSTGRES_CONTAINER_NAME=my-postgres-olist
 PGADMIN_CONTAINER_NAME=my-pgadmin-olist
-docker compose ps

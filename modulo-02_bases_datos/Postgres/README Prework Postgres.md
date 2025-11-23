@@ -1,220 +1,160 @@
-# Curso de Ingeniería de Datos – Guía de Instalación y Prework
+# Prework Postgres + PGAdmin (Olist)
+
+Este proyecto levanta una base de datos **Postgres** con el esquema de **Olist**
+y un **PGAdmin** para explorarla gráficamente.
 
 ---
 
-## Herramientas de Desarrollo
+## 1. Estructura del proyecto
 
-**Git**  
-_Control de versiones y clonación de repositorios._
+Los scripts de `initdb/` se ejecutan automáticamente cuando se crea el contenedor
+de Postgres **por primera vez** (cuando el volumen `postgres_data` está vacío).
 
-**PostgreSQL**  
-_Motor de base de datos relacional y de código abierto, robusto y confiable._
-
-**Docker + Docker Compose**  
-_Ejecuta PostgreSQL y PGAdmin sin instalación manual._
-
-**PGAdmin / DBeaver / VS Code**  
-_Herramientas visuales para explorar, consultar y modelar datos._
+La carpeta `data/olist/` se monta dentro del contenedor en `/data/olist` y es
+desde donde `02_olist_load.sql` hace los `\COPY`.
 
 ---
 
-## Instalación en 3 pasos
+## 2. Variables de entorno
 
-### Clonar el Repositorio del Curso
-
-Abre tu terminal y ejecuta:
-
-```bash
-git clone https://github.com/<usuario>/<curso-ingenieria-datos>.git
-cd curso-ingenieria-datos
-```
-
-> 💡 Si es tu primera vez usando GitHub con SSH, sigue [esta guía oficial](https://docs.github.com/es/authentication/connecting-to-github-with-ssh).
-
----
-
-### 2Iniciar PostgreSQL
-
-#### **Opción A: Usando Docker (recomendada)**
-
-1. Instala [Docker Desktop](https://www.docker.com/products/docker-desktop)  
-2. Copia el archivo de entorno de ejemplo:
-
-```bash
-cp env .env
-```
-
-> El archivo `.env` contiene las credenciales de conexión a PostgreSQL y PGAdmin.
-
-3. Inicia los contenedores:
-
-```bash
-
-# Windows o general
-docker compose up -d
-
-
-# macOS o Linux
-make up
-
-
-```
-
-4. Verifica que estén corriendo:
-
-```bash
-docker ps -a
-```
-
-5. Cuando termines de trabajar:
-
-```bash
-docker compose stop
-```
-
----
-
-#### **Opción B: Instalación local (manual)**
-
-1. Instala PostgreSQL:  
-   - **Windows/Linux:** descarga desde <https://www.postgresql.org/download/>
-   - **macOS:** usa [Homebrew](https://brew.sh/)  
-   
-
-2. Restaura la base de datos de ejemplo:
-
-```bash
-pg_restore -c --if-exists -U <tu_usuario> -d postgres data.dump
-```
-
-Si falla, prueba:
-
-```bash
-pg_restore -U <usuario> -d <nombre_db> -h <host> -p <puerto> data.dump
-```
-
----
-
-### 3Conectarse a PostgreSQL
-
-#### **Si usas PGAdmin (vía Docker)**
-
-1. Abre <http://localhost:5050>  
-2. Ingresa con las credenciales del archivo `.env`
-3. Crea un nuevo servidor:
-   - **General> Nombre:** `Curso-Ingenieria-Datos`
-   - **Connection**
-     - Host: `my-postgres-container`
-     - Puerto: `5432`
-     - Base de datos: `postgres`
-     - Usuario PgAdmi: `postgres@postgres.com`
-     - Contraseña PgAdmi: `postgres`
-4. Guarda los cambios y conecta.  
-5. En el panel izquierdo, expande:
-   ```
-   Servers › Curso-Ingenieria-Datos › Databases › postgres › Schemas › public › Tables
-   ```
-
----
-
-#### **Si usas un cliente de escritorio (DBeaver, DataGrip, VS Code, etc.)**
-
-Configura una nueva conexión PostgreSQL con los siguientes datos:
-
-| Parámetro | Valor |
-|------------|--------|
-| Host | localhost |
-| Puerto | 5432 |
-| Base de datos | postgres |
-| Usuario | postgres |
-| Contraseña | postgres |
-
-Prueba la conexión y guárdala.
-
----
-
-## Problemas Frecuentes y Soluciones
-
-### Las tablas no aparecen
-- Asegúrate de haber restaurado correctamente `data.dump`.
-- Si usas Docker, entra al contenedor y verifica:
-
-```bash
-docker exec -it my-postgres-container bash
-psql -U postgres -d postgres -c '\dt'
-```
-
----
-
-### “Connection refused” o no se puede conectar
-- Verifica que Docker esté corriendo.
-- Revisa el host (`localhost` o `my-postgres-container`).
-- Reinicia los contenedores:
-
-```bash
-make restart
-```
-
----
-
-### Puerto 5432 en uso
-Puede haber otro servicio usando el puerto.
-
-**macOS/Linux**
-```bash
-lsof -i :5432
-kill -9 <PID>
-```
-
-**Windows**
-```cmd
-netstat -ano | findstr :5432
-taskkill /PID <PID> /F
-```
-
----
-
-### Error al iniciar sesión en PGAdmin
-Usa las credenciales del archivo `.env`:
+Revisa el archivo `.env` (y el `env` de ejemplo). Por defecto:
 
 ```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=olist
+POSTGRES_PORT=5432
+
 PGADMIN_DEFAULT_EMAIL=postgres@postgres.com
 PGADMIN_DEFAULT_PASSWORD=postgres
+PGADMIN_PORT=5050
+
+POSTGRES_CONTAINER_NAME=my-postgres-olist
+PGADMIN_CONTAINER_NAME=my-pgadmin-olist
 ```
 
-Si cambiaste el `.env`, elimina el contenedor de PGAdmin y vuelve a ejecutar:
+Puntos importantes:
+
+- El contenedor crea directamente la base de datos **`olist`** (no `postgres`).
+- Los scripts `01_olist_schema.sql` y `02_olist_load.sql` asumen que se ejecutan
+  ya conectados a `olist`.
+
+---
+
+## 3. Levantar el entorno con Makefile
+
+Comandos típicos:
 
 ```bash
-docker compose up -d
+make up        # Levanta Postgres y PGAdmin
+make status    # Muestra contenedores activos
+make logs      # Muestra logs de Postgres
+make psql      # Abre psql dentro del contenedor (DB: olist)
+make seed      # Re-ejecuta los scripts SQL en initdb/ sobre la base olist
+make down      # Apaga contenedores y borra el volumen de datos
+```
+
+> Importante: Si cambias los scripts SQL y quieres que se apliquen desde cero,
+> usa `make down` para borrar el volumen y luego `make up` para que se vuelva
+> a inicializar la base.
+
+---
+
+## 4. Conexión a Postgres desde PGAdmin
+
+1. Abre `http://localhost:5050` (o el puerto que tengas en `PGADMIN_PORT`).
+2. Inicia sesión con:
+   - Email: `postgres@postgres.com`
+   - Password: `postgres`
+
+3. Crea un nuevo servidor:
+
+   - En el panel izquierdo haz clic derecho en **Servers** → **Create** → **Server...**
+
+   Pestaña **General**:
+   - Name: `Curso-Ingenieria-Datos`
+
+   Pestaña **Connection**:
+   - Host name/address: `postgres`  
+     (este es el **nombre del servicio** definido en `docker-compose.yml`,
+      *no* `localhost`, *no* `my-postgres-container`)
+   - Port: `5432`
+   - Maintenance database: `postgres`
+   - Username: `postgres`
+   - Password: `postgres` (o la que tengas en tu `.env`)
+
+4. Guarda. Ahora verás en el árbol:
+
+```text
+Servers
+  └─ Curso-Ingenieria-Datos
+      └─ Databases
+          ├─ postgres
+          └─ olist
 ```
 
 ---
 
-## Comandos Útiles de Docker
+## 5. ¿Dónde están las tablas de Olist?
 
-| Comando | Descripción |
-|----------|--------------|
-| `make up` | Inicia los contenedores de PostgreSQL y PGAdmin |
-| `make stop` | Detiene los contenedores |
-| `make restart` | Reinicia el entorno completo |
-| `make logs` | Muestra los registros |
-| `make inspect` | Inspecciona la configuración |
-| `make ip` | Muestra la IP del contenedor |
+Las tablas del dataset Olist se crean en la base de datos **`olist`**.
+
+En el árbol de PGAdmin navega a:
+
+```text
+Servers › Curso-Ingenieria-Datos › Databases › olist › Schemas › public › Tables
+```
+
+Allí deberías ver:
+
+- `olist_customers`
+- `olist_geolocation`
+- `olist_orders`
+- `olist_order_items`
+- `olist_order_payments`
+- `olist_order_reviews`
+- `olist_products`
+- `olist_sellers`
+- `product_category_name_translation`
+
+Si no aparecen:
+
+1. Verifica que los CSV estén en `data/olist` con los nombres correctos.
+2. Ejecuta:
+
+   ```bash
+   make seed
+   ```
+
+   Esto vuelve a lanzar los scripts de `initdb/` dentro del contenedor
+   (sobre la base `olist`).
+
+3. Como última opción, recrea todo desde cero:
+
+   ```bash
+   make down     # Detiene contenedores y borra volumen
+   make up       # Levanta de nuevo y reinicializa la BD
+   ```
 
 ---
 
-## Verificación Final
+## 6. Uso desde la terminal (opcional)
 
-Ejecuta estos comandos para validar tu entorno:
+Si quieres conectarte directamente desde el contenedor de Postgres:
 
 ```bash
-python --version
-git --version
-docker --version
-psql --version
+make psql
 ```
 
-Si todos responden sin error, ¡ya estás listo para comenzar el curso! 🎉
+Esto abre una sesión de `psql` usando las variables de tu `.env` (DB: `olist`).  
+Una vez dentro, puedes hacer:
 
----
+```sql
+\l           -- listar bases de datos
+\c olist     -- conectarte a la base olist (si no lo estás ya)
+\dt          -- listar tablas
+SELECT * FROM olist_orders LIMIT 5;
+```
 
+Con esto tienes un pequeño data warehouse de Olist listo para usar en ejercicios
+de SQL intermedio y avanzado.
