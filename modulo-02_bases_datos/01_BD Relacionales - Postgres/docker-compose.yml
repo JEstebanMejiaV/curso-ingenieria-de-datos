@@ -12,11 +12,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
       - ./data/olist:/data/olist
-    command: [ "postgres", "-c", "shared_preload_libraries=pg_cron" ]
+    # command: [ "postgres", "-c", "shared_preload_libraries=pg_cron" ]
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
-      timeout: 5s
+      timeout: 20s
       retries: 5
     restart: unless-stopped
 
