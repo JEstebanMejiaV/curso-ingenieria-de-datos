@@ -230,7 +230,6 @@ CREATE TABLE IF NOT EXISTS olist_order_payments (
 2. Define un `CHECK` para asegurar que `payment_value` sea mayor que cero.
 3. Define una `FOREIGN KEY` desde `order_id` a `olist_orders(order_id)`.
 
-Escribe el DDL en `02_constraints_ddl.sql`:
 
 ```sql
 ALTER TABLE olist_order_payments
