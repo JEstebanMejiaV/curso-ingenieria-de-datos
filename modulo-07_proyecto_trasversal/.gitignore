@@ -1,0 +1,35 @@
+# Datos sensibles/voluminosos
+data/
+*.csv
+*.parquet
+*.zip
+*.xlsx
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+
+# AWS
+.aws/
+*.pem
+credentials
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
