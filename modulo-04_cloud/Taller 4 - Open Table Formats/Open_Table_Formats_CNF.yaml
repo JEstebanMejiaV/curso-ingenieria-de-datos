@@ -1,0 +1,1218 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this
+# software and associated documentation files (the "Software"), to deal in the Software
+# without restriction, including without limitation the rights to use, copy, modify,
+# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+AWSTemplateFormatVersion: "2010-09-09"
+
+Metadata:
+    Generator: "keezhada"
+Description: "CloudFormation template for OTF in a box workshop"
+
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: 10.0.0.0/16
+    Public1:
+      CIDR: 10.0.1.0/24
+    Public2:
+      CIDR: 10.0.2.0/24
+    Public3:
+      CIDR: 10.0.3.0/24
+  ClusterConfigurations:
+    redshift:
+      userName: awsuser
+      dbName: dev
+
+Parameters:
+  DataBucketPrefix:
+      Type: String
+      Default: "otfs-workshop-data-"
+      Description: "DataBucket Prefix for the workshop"
+
+  EMRStudioStorageBucketPrefix:
+      Type: String
+      Default: "otfs-workshop-studiostorage-"
+      Description: "EMR Studio Storage Bucket Prefix for the workshop"
+
+Resources:
+
+  # S3 Bucket for storing our Studio notebooks
+  EmrStudioStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join [ '', [!Ref EMRStudioStorageBucketPrefix, !Ref 'AWS::AccountId']]
+
+  # S3 Bucket for storing data 
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join [ '', [!Ref DataBucketPrefix, !Ref 'AWS::AccountId']]
+
+  # IAM resources
+  # We create our own EMR Cluster service role utilizing EMR v2 policies
+
+  # EMR Studio requires a service role for saving notebooks to S3
+  EMRStudioServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - elasticmapreduce.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Description: "Service role for EMR Studio"
+      RoleName: "otfs-workshop-EMRStudio_Service_Role"
+
+  EMRStudioServiceRolePolicy:
+    DependsOn:
+      - EMRStudioServiceRole
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Roles:
+        - Ref: "EMRStudioServiceRole"
+      ManagedPolicyName: "otfs-workshop-EMRStudio_ServiceRolePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowS3StudioStorageObjectActions
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Resource:
+              - !Sub "arn:aws:s3:::${EmrStudioStorageBucket}/*"
+
+          - Sid: AllowS3StudioStorageBucketActions
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetEncryptionConfiguration
+            Resource:
+              - !Sub "arn:aws:s3:::${EmrStudioStorageBucket}"
+
+  # EMR Serverless requires a runtime role to execute code
+  EMRRuntimeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - emr-serverless.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Description: "Service role for EMR Studio"
+      RoleName: "otfs-workshop-AmazonEMRStudio_RuntimeRole"
+
+ # EMR Serverless used runtime role needs full s3 permissions on the data bucket and on glue
+  EMRRuntimeRolePolicy:
+    DependsOn:
+      - EMRRuntimeRole
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Roles:
+        - Ref: "EMRRuntimeRole"
+      ManagedPolicyName: "otfs-workshop-EMRStudio_RuntimeRolePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowS3AccessOnDataBucket
+            Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::${DataBucket}/*"
+              - !Sub "arn:aws:s3:::${DataBucket}"
+
+          - Sid: AllowFullGluePermissions
+            Effect: Allow
+            Action:
+              - glue:*
+              - s3:GetEncryptionConfiguration
+            Resource:
+              - "*"
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - VPC
+        - CIDR
+      InstanceTenancy: default
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: Workshop-VPC
+        - Key: for-use-with-iceberg-redshift-workshop
+          Value: 'true'
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: IG
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - Public1
+        - CIDR
+      MapPublicIpOnLaunch: 'true'
+      AvailabilityZone: !Select 
+        - 0
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicSubnet1
+        - Key: for-use-with-iceberg-redshift-workshop
+          Value: 'true'
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - Public2
+        - CIDR
+      MapPublicIpOnLaunch: 'true'
+      AvailabilityZone: !Select 
+        - 1
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicSubnet2
+        - Key: for-use-with-iceberg-redshift-workshop
+          Value: 'true'
+  PublicSubnet3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - Public3
+        - CIDR
+      MapPublicIpOnLaunch: 'true'
+      AvailabilityZone: !Select 
+        - 2
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicSubnet3
+        - Key: for-use-with-iceberg-redshift-workshop
+          Value: 'true'
+
+  NATGateway1EIP:
+    Type: 'AWS::EC2::EIP'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      Domain: vpc
+  NATGateway2EIP:
+    Type: 'AWS::EC2::EIP'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      Domain: vpc
+  NATGateway3EIP:
+    Type: 'AWS::EC2::EIP'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      Domain: vpc
+  NATGateway1:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      AllocationId: !GetAtt 
+        - NATGateway1EIP
+        - AllocationId
+      Tags:
+        - Key: Name
+          Value: NAT-Gateway1
+  NATGateway2:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      AllocationId: !GetAtt 
+        - NATGateway2EIP
+        - AllocationId
+      Tags:
+        - Key: Name
+          Value: NAT-Gateway2
+  NATGateway3:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      AllocationId: !GetAtt 
+        - NATGateway3EIP
+        - AllocationId
+      Tags:
+        - Key: Name
+          Value: NAT-Gateway3
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+  DefaultPublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref PublicRouteTable
+      GatewayId: !Ref InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+  PublicSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+  PublicSubnet3RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet3
+  S3Endpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: '*'
+            Principal: '*'
+            Resource: '*'
+      RouteTableIds:
+        - !Ref PublicRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPC
+
+  VPCEndpointGlue:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.glue'
+      VpcId: !Ref VPC
+
+  VPCEndpointRedshift:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.redshift'
+      VpcId: !Ref VPC
+
+  VPCEndpointCloudwatch:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.monitoring'
+      VpcId: !Ref VPC
+
+  VPCEndpointSecretManager:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      VpcId: !Ref VPC
+
+  VPCDefaultSecurityGroupIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !GetAtt 
+        - VPC
+        - DefaultSecurityGroup
+      IpProtocol: '-1'
+      CidrIp: !FindInMap 
+        - SubnetConfig
+        - VPC
+        - CIDR
+
+  RedShiftSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security group for Redshift cluster'
+      VpcId: !Ref VPC
+  RedshiftSGIngressSelfAllTcp:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref RedShiftSG
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !Ref RedShiftSG
+  
+  RedshiftIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref RedShiftSG
+      IpProtocol: tcp
+      FromPort: 5439
+      ToPort: 5439
+      CidrIp: 0.0.0.0/0      
+
+  RedshiftSGIngressSelfAllUdp:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref RedShiftSG
+      IpProtocol: udp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !Ref RedShiftSG
+  RedshiftSubnetGroup:
+    Type: 'AWS::Redshift::ClusterSubnetGroup'
+    Properties:
+      Description: 'Redshift cluster subnet group'
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+  RedshiftClusterParameterGroup:
+    Type: 'AWS::Redshift::ClusterParameterGroup'
+    Properties:
+      Description: !Join [ " ", [ !Ref 'AWS::StackName', " - Redshift Cluster Parameter group" ]] 
+      ParameterGroupFamily: redshift-1.0
+  RedshiftCreds:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: 'RedshiftCreds'
+      Description: !Sub Redshift cluster master user credentials for ${AWS::StackName}
+      GenerateSecretString:
+        SecretStringTemplate: !Join [ '', [ '{"username": "', !FindInMap [ ClusterConfigurations, redshift, userName ], '"}' ]]
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludePunctuation: true
+      Tags:
+        -
+          Key: RedshiftIcebergworkshopCred
+          Value: 'true'
+
+  CMKeyRedshiftCluster:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'Customer managed key to be used for encryption at rest'
+      Enabled: Yes
+      EnableKeyRotation: Yes
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable KMS Permissions for root account user
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: 'Allow access through Redshift for all principals in the account that are authorized to use Redshift'
+            Effect: 'Allow'
+            Principal:
+              AWS: '*'
+            Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:CreateGrant'
+              - 'kms:ListGrants'
+              - 'kms:DescribeKey'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:CallerAccount': !Sub '${AWS::AccountId}'
+                'kms:ViaService': !Sub 'redshift.${AWS::Region}.amazonaws.com'
+                
+  RedshiftServerlessNamespace:
+    Type: 'AWS::RedshiftServerless::Namespace'
+    DependsOn:
+      - RedshiftCreds
+    Properties:
+      AdminUsername: !Join [ '', [ '{{resolve:secretsmanager:', !Ref RedshiftCreds, ':SecretString:username}}' ]]
+      AdminUserPassword: !Join [ '', [ '{{resolve:secretsmanager:', !Ref RedshiftCreds, ':SecretString:password}}' ]]
+      DbName: !FindInMap [ ClusterConfigurations, redshift, dbName ]
+      NamespaceName:  !Sub
+          - 'namespace-${RandomGUID}'
+          - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
+      IamRoles:
+        - !GetAtt 'MyRedshiftIAMRole.Arn'
+      KmsKeyId: !Ref CMKeyRedshiftCluster
+      DefaultIamRoleArn: !GetAtt 'MyRedshiftIAMRole.Arn'
+
+  RedshiftServerlessWorkgroup:
+    Type: 'AWS::RedshiftServerless::Workgroup'
+    DependsOn:
+      - RedshiftCreds
+      - RedshiftServerlessNamespace
+    Properties:
+      WorkgroupName: !Sub
+          - 'workgroup-${RandomGUID}'
+          - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
+      NamespaceName:  !Sub
+          - 'namespace-${RandomGUID}'
+          - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
+      BaseCapacity: 32
+      PubliclyAccessible: false
+      SubnetIds:
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+        - Ref: PublicSubnet3
+      SecurityGroupIds:
+        - Ref: RedShiftSG
+
+  MyRedshiftIAMRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join [ "-", [!Ref 'AWS::StackName', "Redshift-IAM-Role"] ]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'redshift.amazonaws.com'
+                - 'glue.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Path: '/'
+      Policies:
+        - PolicyName: !Join [ "-", [!Ref 'AWS::StackName', "Spectrum-Glue-Access-Policy"] ]
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListMultipartUploadParts
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                Resource:
+                  - !Join [
+                      '',
+                      ['arn:aws:s3:::', !Ref DataBucketPrefix, !Ref 'AWS::AccountId'],
+                    ]
+                  - !Join [
+                      '',
+                      ['arn:aws:s3:::', !Ref DataBucketPrefix, !Ref 'AWS::AccountId', '/*'],
+                    ]
+              - Effect: Allow
+                Action:
+                  - glue:CreateDatabase
+                  - glue:DeleteDatabase
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:UpdateDatabase
+                  - glue:CreateTable
+                  - glue:DeleteTable
+                  - glue:BatchDeleteTable
+                  - glue:UpdateTable
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:BatchCreatePartition
+                  - glue:CreatePartition
+                  - glue:DeletePartition
+                  - glue:BatchDeletePartition
+                  - glue:UpdatePartition
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                  - glue:BatchGetPartition
+                  - logs:*
+                Resource:
+                  - '*'
+
+  GlueIAMRole:
+        Type: "AWS::IAM::Role"
+        Properties:
+            Path: "/"
+            RoleName: !Join ['-', ['Glue', 'WorkshopRole']]
+            AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"glue.amazonaws.com\",\"lambda.amazonaws.com\"]},\"Action\":\"sts:AssumeRole\"}]}"
+            MaxSessionDuration: 3600
+            ManagedPolicyArns: 
+              - "arn:aws:iam::aws:policy/service-role/AWSGlueServiceNotebookRole"
+              - "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+              - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+            Description: "Allows Glue to call AWS services on your behalf."
+
+  GlueS3BucketAccessPolicy:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyDocument: !Sub |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "VisualEditor1",
+                            "Effect": "Allow",
+                            "Action": "s3:*",
+                            "Resource": ["arn:aws:s3:::${DataBucket}","arn:aws:s3:::${DataBucket}/*","arn:aws:s3:::aws-glue-assets-${AWS::AccountId}-${AWS::Region}","arn:aws:s3:::aws-glue-assets-${AWS::AccountId}-${AWS::Region}/*"]
+                        }
+                    ]
+                }
+            Roles: 
+              - !Ref GlueIAMRole
+            PolicyName: !Join ['_', ['glue_s3_policy', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+
+  
+  GlueKinesisAccessPolicy:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyDocument: !Sub |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "VisualEditor0",
+                            "Effect": "Allow",
+                            "Action": [
+                                "kinesis:SubscribeToShard",
+                                "kinesis:PutRecords",
+                                "kinesis:DescribeStreamConsumer",
+                                "kinesis:GetShardIterator",
+                                "kinesis:DescribeStream",
+                                "kinesis:RegisterStreamConsumer",
+                                "kinesis:PutRecord",
+                                "kinesis:GetRecords",
+                                "kinesis:ListStreamConsumers",
+                                "kinesis:ListStreams",
+                                "kinesis:ListShards"
+                            ],
+                            "Resource": ["arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${FLKinesisIcebergStream}"]
+                        }
+                    ]
+                }
+            Roles: 
+              - !Ref GlueIAMRole
+            PolicyName: !Join ['_', ['glue_kinesis_policy', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+  
+  
+  GluePublicS3BucketAccessPolicy:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyDocument: !Sub |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "VisualEditor0",
+                            "Effect": "Allow",
+                            "Action": ["s3:GetObject","s3:ListBucket"],
+                            "Resource": "arn:aws:s3:::redshift-downloads/TPC-DS/100GB/*/*"
+                        }
+                    ]
+                }
+            Roles: 
+              - !Ref GlueIAMRole
+            PolicyName: !Join ['_', ['glue_public_s3_policy', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+
+
+  GlueRoleAthenaAccessPolicy:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyDocument: !Sub |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "VisualEditor1",
+                            "Effect": "Allow",
+                            "Action": ["athena:StartQueryExecution","athena:StopQueryExecution","athena:GetQueryExecution","athena:GetQueryResults","athena:GetQueryExecutions","athena:RunQuery","athena:ListQueryExecutions","athena:ListNamedQueries","athena:BatchGetNamedQuery"],
+                            "Resource": ["arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/primary"]
+                        }
+                    ]
+                }
+            Roles: 
+              - !Ref GlueIAMRole
+            PolicyName: !Join ['_', ['gluerole_athena_policy', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+
+  GlueIAMPassAccessPolicy:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyDocument: !Sub |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": "iam:PassRole",
+                            "Resource": "arn:aws:iam::${AWS::AccountId}:role/${GlueIAMRole}"
+                        }
+                    ]
+                }
+                  
+            Roles: 
+              - !Ref GlueIAMRole
+            PolicyName: !Join ['_', ['glue_iam_pass_policy', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: tpcds
+
+  GlueTableWebSales:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: web_sales
+        TableType: EXTERNAL_TABLE
+        Parameters: {"classification": "csv"}
+        StorageDescriptor:
+          Columns:
+          - Name: ws_sold_date_sk
+            Type: int
+          - Name: ws_sold_time_sk
+            Type: int
+          - Name: ws_ship_date_sk
+            Type: int
+          - Name: ws_item_sk
+            Type: int
+          - Name: ws_bill_customer_sk
+            Type: int
+          - Name: ws_bill_cdemo_sk
+            Type: int
+          - Name: ws_bill_hdemo_sk
+            Type: int
+          - Name: ws_bill_addr_sk
+            Type: int
+          - Name: ws_ship_customer_sk
+            Type: int
+          - Name: ws_ship_cdemo_sk
+            Type: int
+          - Name: ws_ship_hdemo_sk
+            Type: int
+          - Name: ws_ship_addr_sk
+            Type: int
+          - Name: ws_web_page_sk
+            Type: int
+          - Name: ws_web_site_sk
+            Type: int
+          - Name: ws_ship_mode_sk
+            Type: int
+          - Name: ws_warehouse_sk
+            Type: int
+          - Name: ws_promo_sk
+            Type: int
+          - Name: ws_order_number
+            Type: int
+          - Name: ws_quantity
+            Type: int
+          - Name: ws_wholesale_cost
+            Type: double
+          - Name: ws_list_price
+            Type: double
+          - Name: ws_sales_price
+            Type: double
+          - Name: ws_ext_discount_amt
+            Type: double
+          - Name: ws_ext_sales_price
+            Type: double
+          - Name: ws_ext_wholesale_cost
+            Type: double
+          - Name: ws_ext_list_price
+            Type: double
+          - Name: ws_ext_tax
+            Type: double
+          - Name: ws_coupon_amt
+            Type: double
+          - Name: ws_ext_ship_cost
+            Type: double
+          - Name: ws_net_paid
+            Type: double
+          - Name: ws_net_paid_inc_tax
+            Type: double
+          - Name: ws_net_paid_inc_ship
+            Type: double
+          - Name: ws_net_paid_inc_ship_tax
+            Type: double
+          - Name: ws_net_profit
+            Type: double
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Location: s3://redshift-downloads/TPC-DS/100GB/web_sales/
+          SerdeInfo:
+            Parameters:
+              field.delim: "|"
+            SerializationLibrary: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+
+  GlueTableCustomer:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: customer
+        TableType: EXTERNAL_TABLE
+        Parameters: {"classification": "csv"}
+        StorageDescriptor:
+          Columns:
+          - Name: c_customer_sk
+            Type: int
+          - Name: c_customer_id
+            Type: string
+          - Name: c_current_cdemo_sk
+            Type: int
+          - Name: c_current_hdemo_sk
+            Type: int
+          - Name: c_current_addr_sk
+            Type: int
+          - Name: c_first_shipto_date_sk
+            Type: int
+          - Name: c_first_sales_date_sk
+            Type: int
+          - Name: c_salutation
+            Type: string
+          - Name: c_first_name
+            Type: string
+          - Name: c_last_name
+            Type: string
+          - Name: c_preferred_cust_flag
+            Type: string
+          - Name: c_birth_day
+            Type: int
+          - Name: c_birth_month
+            Type: int
+          - Name: c_birth_year
+            Type: int
+          - Name: c_birth_country
+            Type: string
+          - Name: c_login
+            Type: string
+          - Name: c_email_address
+            Type: string
+          - Name: c_last_review_date_sk
+            Type: int
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Location: s3://redshift-downloads/TPC-DS/100GB/customer
+          SerdeInfo:
+            Parameters:
+              field.delim: "|"
+            SerializationLibrary: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+
+  GlueTableDateDim:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: date_dim
+        TableType: EXTERNAL_TABLE
+        Parameters: {"classification": "csv"}
+        StorageDescriptor:
+          Columns:
+          - Name: d_date_sk
+            Type: int
+          - Name: d_date_id
+            Type: string
+          - Name: d_date
+            Type: string
+          - Name: d_month_seq
+            Type: int
+          - Name: d_week_seq
+            Type: int
+          - Name: d_quarter_seq
+            Type: int
+          - Name: d_year
+            Type: int
+          - Name: d_dow
+            Type: int
+          - Name: d_moy
+            Type: int
+          - Name: d_dom
+            Type: int
+          - Name: d_qoy
+            Type: int
+          - Name: d_fy_year
+            Type: int
+          - Name: d_fy_quarter_seq
+            Type: int
+          - Name: d_fy_week_seq
+            Type: int
+          - Name: d_day_name
+            Type: string
+          - Name: d_quarter_name
+            Type: string
+          - Name: d_holiday
+            Type: string
+          - Name: d_weekend
+            Type: string
+          - Name: d_following_holiday
+            Type: string
+          - Name: d_first_dom
+            Type: int
+          - Name: d_last_dom
+            Type: int
+          - Name: d_same_day_ly
+            Type: int
+          - Name: d_same_day_lq
+            Type: int
+          - Name: d_current_day
+            Type: string
+          - Name: d_current_week
+            Type: string
+          - Name: d_current_month
+            Type: string
+          - Name: d_current_quarter
+            Type: string
+          - Name: d_current_year
+            Type: string
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Location: s3://redshift-downloads/TPC-DS/100GB/date_dim/
+          SerdeInfo:
+            Parameters:
+              field.delim: "|"
+            SerializationLibrary: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+
+  GlueTableTimeDim:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: time_dim
+        TableType: EXTERNAL_TABLE
+        Parameters: {"classification": "csv"}
+        StorageDescriptor:
+          Columns:
+          - Name: t_time_sk
+            Type: int
+          - Name: t_time_id
+            Type: string
+          - Name: t_time
+            Type: int
+          - Name: t_hour
+            Type: int
+          - Name: t_minute
+            Type: int
+          - Name: t_second
+            Type: int
+          - Name: t_am_pm
+            Type: string
+          - Name: t_shift
+            Type: string
+          - Name: t_sub_shift
+            Type: string
+          - Name: t_meal_time
+            Type: string
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Location: s3://redshift-downloads/TPC-DS/100GB/time_dim/
+          SerdeInfo:
+            Parameters:
+              field.delim: "|"
+            SerializationLibrary: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+
+  AthenaNamedQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: "tpcds"
+      Description: "Query to create the prepared_web_sales table"
+      Name: "prepared_web_sales"
+      QueryString:
+        Fn::Sub: |
+          CREATE TABLE tpcds.prepared_web_sales
+          WITH (
+                external_location = 's3://${DataBucket}/datasets/TPC-DS-100-GB/prepared_web_sales/',
+                format = 'PARQUET')
+          AS SELECT * FROM (
+          WITH t1 AS (
+          SELECT ws_sold_date_sk, ws_sold_time_sk, ws_order_number, ws_item_sk, ws_quantity, ws_sales_price, ws_warehouse_sk FROM tpcds.web_sales WHERE ws_warehouse_sk IS NOT NULL AND ws_sold_time_sk IS NOT NULL AND ws_sold_date_sk IS NOT NULL AND ws_order_number IS NOT NULL AND ws_item_sk IS NOT NULL
+          ),
+
+          t2 AS (
+          SELECT CAST(d_year AS varchar) AS d_year, CAST(d_moy AS VARCHAR) AS d_moy, CAST(d_dom AS varchar) AS d_dom, d_date_sk FROM tpcds.date_dim WHERE d_year IS NOT NULL AND d_moy IS NOT NULL AND d_dom IS NOT NULL
+          ),
+
+          t3 AS (
+          SELECT CAST(t_hour AS varchar) AS t_hour, CAST(t_minute AS varchar) AS t_minute, CAST(t_second AS varchar) AS t_second, t_time_sk FROM tpcds.time_dim WHERE t_hour IS NOT NULL AND t_minute IS NOT NULL AND t_second IS NOT NULL
+          ),
+
+          t4 AS (
+          SELECT t1.ws_order_number AS ws_order_number, t1.ws_item_sk AS ws_item_sk, t1.ws_quantity AS ws_quantity, t1.ws_sales_price AS ws_sales_price, t1.ws_warehouse_sk AS ws_warehouse_sk, t2.d_year AS d_year, t2.d_moy as d_moy, t2.d_dom as d_dom, t1.ws_sold_time_sk AS ws_sold_time_sk
+          FROM t1 JOIN t2
+          ON t1.ws_sold_date_sk = t2.d_date_sk
+          ),
+
+          t5 AS (
+          SELECT t4.ws_order_number AS ws_order_number, t4.ws_item_sk AS ws_item_sk, t4.ws_quantity AS ws_quantity, t4.ws_sales_price AS ws_sales_price, t4.ws_warehouse_sk AS ws_warehouse_sk, CAST("d_year" || '-' || "d_moy" || '-' || "d_dom" || ' ' || "t_hour" || ':' || "t_minute" || ':' || "t_second" AS timestamp) AS ws_sales_time
+          FROM t4 JOIN t3
+          ON t4.ws_sold_time_sk = t3.t_time_sk
+          )
+
+          SELECT * FROM t5)
+
+  LambdaLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/lambda/otf_in_a_box_prereq_deploy_lambda"
+      RetentionInDays: 90
+  
+  AthenaQueryTriggerLambdaFunction:
+    Type: "AWS::Lambda::Function"
+    DependsOn: 
+      - GlueIAMRole
+      - DataBucket
+      - AthenaNamedQuery
+      - LambdaLogGroup
+    Properties:
+        Description: "Lambda function to trigger athena named query"
+        FunctionName: "otf_in_a_box_prereq_deploy_lambda"
+        Handler: "otf_in_a_box_prereq_deploy_function.lambda_handler"
+        Architectures: 
+          - "x86_64"
+        Code: 
+            S3Bucket: aws-data-analytics-workshops
+            S3Key: transactional-and-mutable-datalakes/scripts/otf_in_a_box_prereq_deploy_lambda.zip 
+        MemorySize: '128'
+        Role: !GetAtt GlueIAMRole.Arn
+        Environment:
+            Variables:
+                s3_bucket: !Ref DataBucket
+                named_query: "prepared_web_sales"
+                s3_bucket_2: !Ref EmrStudioStorageBucket
+                db_name: "tpcds"
+                glue_job_role: !GetAtt GlueIAMRole.Arn
+                stream_arn: !GetAtt FLKinesisIcebergStream.Arn
+        Runtime: python3.12
+        Timeout: '300'
+        EphemeralStorage: 
+            Size: 512
+  EnablePrereqLambda:
+    Type: Custom::EnableLambda
+    Version: '1.0'
+    Properties:
+        ServiceToken: !GetAtt AthenaQueryTriggerLambdaFunction.Arn
+  
+  FLVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 100.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+  FLPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FLVPC
+      CidrBlock: 100.0.0.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: us-east-1a
+  FLPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FLVPC
+      CidrBlock: 100.0.1.0/24
+  FLInternetGateway:
+    Type: AWS::EC2::InternetGateway
+  FLAttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref FLVPC
+      InternetGatewayId: !Ref FLInternetGateway
+  FLEMRServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: elasticmapreduce.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
+  FLEMRJobFlowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess
+        - arn:aws:iam::aws:policy/AmazonKinesisFullAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonSSMManagedEC2InstanceDefaultPolicy
+  FLEMRInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: emr-instance-profile-flink-iceberg
+      Roles:
+        - !Ref FLEMRJobFlowRole
+  FLPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref FLVPC
+  FLPublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FLPublicSubnet1
+      RouteTableId: !Ref FLPublicRouteTable
+  FLDefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - FLAttachGateway
+      - FLPublicSubnet1RouteTableAssociation
+    Properties:
+      RouteTableId: !Ref FLPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref FLInternetGateway
+  FLEMRIcebergCluster:
+    Type: AWS::EMR::Cluster
+    DependsOn:
+      - FLEMRInstanceProfile
+      - FLPublicSubnet1
+      - FLPrivateSubnet
+      - FLEMRJobFlowRole
+      - FLDefaultPublicRoute
+    Properties:
+      JobFlowRole: !Ref FLEMRInstanceProfile
+      Name: emr-iceberg-cdk
+      ServiceRole: !Ref FLEMRServiceRole
+      ReleaseLabel: emr-7.0.0
+      Instances:
+        CoreInstanceGroup:
+          InstanceCount: 1
+          InstanceType: m5.xlarge
+        MasterInstanceGroup:
+          InstanceCount: 1
+          InstanceType: m5.xlarge
+        Ec2SubnetId: !Ref FLPublicSubnet1
+      Applications:
+        - Name: Flink
+        - Name: Zeppelin
+        - Name: Hive
+        - Name: Hadoop
+  FLKinesisIcebergStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: kinesis-source
+      RetentionPeriodHours: 24
+      StreamModeDetails:
+        StreamMode: ON_DEMAND
+  FLMyGlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Sub ${AWS::AccountId}
+      DatabaseInput:
+        Name: iceberg_flink
+  FLEMRIcebergStep:
+    Type: AWS::EMR::Step
+    DependsOn:
+      - FLEMRIcebergCluster
+    Properties:
+      Name: EMRIcebergStep
+      ActionOnFailure: CONTINUE
+      HadoopJarStep:
+        Jar: command-runner.jar
+        Args:
+          - bash
+          - '-c'
+          - !Join
+            - ''
+            - - 'cd /usr/lib/flink/lib && '
+              - 'sudo wget https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.21.5/bundle-2.21.5.jar && '
+              - 'sudo wget https://repo1.maven.org/maven2/com/github/ben-manes/caffeine/caffeine/2.9.3/caffeine-2.9.3.jar && '
+              - 'sudo wget https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws/1.5.0/iceberg-aws-1.5.0.jar && '
+              - 'sudo wget https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-flink-runtime-1.18/1.5.0/iceberg-flink-runtime-1.18-1.5.0.jar && '
+              - 'sudo wget https://repo1.maven.org/maven2/org/apache/orc/orc-core/1.9.1/orc-core-1.9.1.jar && '
+              - sudo wget https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kinesis/4.2.0-1.18/flink-sql-connector-kinesis-4.2.0-1.18.jar &&
+              - 'sudo chmod 755 bundle-2.21.5.jar && '
+              - 'sudo chmod 755 caffeine-2.9.3.jar && '
+              - 'sudo chmod 755 iceberg-aws-1.5.0.jar && '
+              - 'sudo chmod 755 iceberg-flink-runtime-1.18-1.5.0.jar && '
+              - 'sudo chmod 755 flink-sql-connector-kinesis-4.2.0-1.18.jar && '
+              - 'sudo chmod 755 bundle-2.21.5.jar && '
+              - sudo chmod 755 orc-core-1.9.1.jar
+      JobFlowId: !Ref FLEMRIcebergCluster
