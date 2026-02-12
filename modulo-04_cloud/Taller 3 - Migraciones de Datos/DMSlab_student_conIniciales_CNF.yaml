@@ -665,3 +665,4 @@ Resources:
     Properties:
       ServiceToken: !GetAtt S3BucketHandler.Arn
       Bucket: !Ref S3BucketWorkgroupB
+      
