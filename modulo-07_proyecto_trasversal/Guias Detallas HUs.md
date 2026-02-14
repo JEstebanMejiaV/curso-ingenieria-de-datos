@@ -771,3 +771,244 @@ Tarea 8.2: Permisos y cifrado
 Acceso mínimo necesario (producer write, consumer read, sink write).
 
 DoD: roles separados y verificación de permisos.
+
+# DataOps y Automatización
+Backlog de tareas específicas para:
+- **HU10**: Orquestación con Airflow
+- **HU11**: Validación de datos con Great Expectations
+- Entregables: **2 DAGs activos**, validaciones automáticas, diagrama del flujo, CI/CD con GitHub Actions.
+
+---
+
+## Alcance y entregables
+### HU10
+- Airflow operativo (local y/o entorno destino).
+- **2 DAGs activos**:
+  - `batch_kpis_orders_deliveries`
+  - `streaming_iot_ops`
+
+### HU11
+- Great Expectations inicializado y ejecutándose automáticamente desde Airflow.
+- Suites, checkpoints y Data Docs (o evidencia equivalente).
+
+### CI/CD
+- Workflow de GitHub Actions con lint, tests, import de DAGs, sanity check de GE.
+- Documentación de despliegue (según plataforma: Docker, Kubernetes, MWAA).
+
+### Evidencia
+- Carpeta `evidence/` con logs y muestras de outputs.
+
+---
+
+## Diagrama del flujo completo
+```mermaid
+flowchart LR
+  A[Fuentes pedidos y entregas] --> B[S3 raw]
+  C[Eventos IoT] --> D[Kafka o Kinesis]
+  D --> E[Sink anomalías]
+  B --> F[ETL PySpark batch]
+  F --> G[S3 curated]
+  G --> H[Mart KPIs]
+  H --> I[Redshift opcional]
+  G --> J[Great Expectations]
+  H --> J
+  J --> K[Data Docs]
+  L[Airflow] --> F
+  L --> J
+  L --> M[Alertas]
+```
+
+---
+
+## Estructura del repositorio (propuesta)
+```
+.
+├─ dags/
+│  ├─ batch_kpis_orders_deliveries.py
+│  └─ streaming_iot_ops.py
+├─ include/
+│  ├─ configs/
+│  ├─ spark/
+│  ├─ streaming/
+│  └─ utils/
+├─ quality/
+│  ├─ great_expectations/
+│  │  ├─ expectations/
+│  │  ├─ checkpoints/
+│  │  ├─ plugins/
+│  │  └─ great_expectations.yml
+│  └─ run_checkpoint.py
+├─ infra/
+│  ├─ docker-compose.yml
+│  └─ airflow/
+│     ├─ Dockerfile
+│     └─ requirements.txt
+├─ .github/
+│  └─ workflows/
+│     └─ ci.yml
+└─ evidence/
+   ├─ logs/
+   └─ samples/
+```
+
+---
+
+# Backlog de tareas
+
+## HU10: Orquestar flujos de datos usando Airflow
+
+### 10.1 Preparación del entorno de Airflow (base operativa)
+- **Tarea 10.1: Definir plataforma de ejecución**
+  - Alternativas: Docker Compose (dev), Kubernetes/Helm (prod), MWAA (AWS) si aplica.
+  - **DoD:** decisión documentada + checklist de operación (arranque, logs, upgrades).
+
+- **Tarea 10.2: Provisionar Airflow (dev y prod)**
+  - Configurar scheduler, webserver, workers, metadata DB.
+  - **DoD:** Airflow arriba, con acceso controlado, y DAGs visibles.
+
+- **Tarea 10.3: Gestión de secretos y conexiones**
+  - Crear Connections: S3, Redshift, Glue/EMR, Kafka/Kinesis, SMTP/Slack.
+  - Mover credenciales a Secret Manager o Variables/Connections.
+  - **DoD:** ningún secreto hardcodeado y conexiones probadas desde Airflow.
+
+- **Tarea 10.4: Estándares de ingeniería para DAGs**
+  - Convenciones: naming, retries, timeouts, SLA, tags, owners, pools/queues.
+  - **DoD:** plantilla de DAG y guía corta aplicada a los DAGs nuevos.
+
+---
+
+### 10.2 DAG 1 (Batch) para KPIs de pedidos y entregas (PySpark)
+**Nombre recomendado:** `batch_kpis_orders_deliveries`
+
+- **Tarea 10.5: Crear DAG `batch_kpis_orders_deliveries`**
+  - Tasks sugeridas:
+    - `validate_inputs` (existencia de particiones raw/curated esperadas)
+    - `run_pyspark_etl` (Glue, EMR o spark-submit)
+    - `register_partitions` (crawler o job de particiones)
+    - `run_ge_validations` (HU11)
+    - `publish_outputs` (opcional: load a Redshift o refresh de vistas)
+    - `notify` (Slack/email en éxito o fallo)
+  - **DoD:** DAG corre end-to-end con `run_date`, deja outputs en S3 o Redshift y evidencia en logs.
+
+- **Tarea 10.6: Parametrización y backfill**
+  - Parámetros: `run_date`, `mode` (full/incremental), `backfill_range` opcional.
+  - **DoD:** backfill de N días funciona sin duplicar y con sobrescritura por partición.
+
+---
+
+### 10.3 DAG 2 (Streaming/Ops) para HU8-HU9
+**Nombre recomendado:** `streaming_iot_ops`
+
+- **Tarea 10.7: Crear DAG `streaming_iot_ops`**
+  - Enfoques permitidos (elige 1 o combina):
+    - Health checks: lag/iterator age, consumer liveness, tasa de eventos, DLQ growth.
+    - Micro-batch: cada 5 min consolida anomalías a S3 (parquet particionado).
+    - Catálogo: actualiza Glue/Athena para el sink de anomalías.
+  - **DoD:** DAG corre programado, genera logs con métricas y dispara alertas si el stream se degrada.
+
+- **Tarea 10.8: Alertas operativas**
+  - Reglas: lag alto, sin eventos por X minutos, DLQ subiendo, job fallando repetido.
+  - **DoD:** al menos 2 alertas probadas (simulando fallas).
+
+---
+
+## HU11: Validar datos procesados con Great Expectations
+
+### 11.1 Estructura del proyecto de calidad (GE)
+- **Tarea 11.1: Inicializar proyecto Great Expectations**
+  - Estructura: `expectations/`, `checkpoints/`, `plugins/`, `data_docs/`.
+  - **DoD:** GE operativo localmente y ejecutable en CI.
+
+- **Tarea 11.2: Definir Data Quality SLAs**
+  - Qué falla el pipeline vs qué solo alerta.
+  - Severidades: `critical`, `warning`.
+  - **DoD:** política escrita y aplicada en checkpoints.
+
+---
+
+### 11.2 Suites de expectativas (por dataset)
+- **Tarea 11.3: Suite `orders_enriched`**
+  - Ejemplos:
+    - `order_id` no nulo y único
+    - `order_created_ts` no nulo y parseable
+    - estados en conjunto permitido
+    - rangos válidos de montos y fechas
+  - **DoD:** suite versionada con al menos 8 expectativas útiles.
+
+- **Tarea 11.4: Suite `deliveries_enriched`**
+  - Ejemplos:
+    - `delivery_id` no nulo y único
+    - coherencia temporal (entrega no antes de creación)
+    - rangos razonables de tiempos (lead time no negativo)
+  - **DoD:** suite versionada con al menos 8 expectativas útiles.
+
+- **Tarea 11.5: Suite `mart_kpis_delivery_daily`**
+  - Ejemplos:
+    - `event_date` no nulo
+    - KPIs en rangos (tasas entre 0 y 1, conteos no negativos)
+    - freshness: max(event_date) dentro del SLA esperado
+  - **DoD:** suite versionada con freshness incluida.
+
+- **Tarea 11.6: Validaciones cross-table**
+  - Integridad referencial lógica:
+    - deliveries mapean a orders (tasa de huérfanos bajo umbral)
+  - **DoD:** checkpoint con consulta o métrica y umbral definido.
+
+---
+
+### 11.3 Ejecución automática en Airflow
+- **Tarea 11.7: Integrar GE como tarea del DAG**
+  - Implementación: PythonOperator o wrapper que ejecute `checkpoint.run()`.
+  - Reglas:
+    - falla el DAG si `critical` no cumple
+    - si es `warning`, continúa y notifica
+  - **DoD:** GE se ejecuta en el DAG batch (y opcionalmente en el DAG ops) con resultados persistidos.
+
+- **Tarea 11.8: Publicación de Data Docs**
+  - Publicar en S3 o adjuntar como artefacto de CI.
+  - **DoD:** cada corrida genera evidencia consultable (timestamp y run_id).
+
+---
+
+## CI/CD: GitHub Actions (documentación y pipeline)
+
+### 12.1 Pipeline mínimo recomendado
+- **Tarea 12.1: Validación de estilo y calidad de código**
+  - Lint (ruff), formato (black), tipos (opcional).
+  - **DoD:** PR no pasa si falla lint o formato.
+
+- **Tarea 12.2: Tests**
+  - Unit tests (pytest) para utilidades y lógica de validación.
+  - Test de importación de DAGs (DagBag sin errores).
+  - **DoD:** suite de tests corre en CI y bloquea merges si falla.
+
+- **Tarea 12.3: Build de artefactos**
+  - Build de imagen Docker (si Airflow self-hosted) o paquete de DAGs (si MWAA).
+  - **DoD:** artefacto versionado por commit o tag.
+
+- **Tarea 12.4: Deploy**
+  - Kubernetes: rollout de imagen.
+  - MWAA: sync DAGs a S3 y update de requirements.
+  - Compose/VM: pull del repo y restart controlado.
+  - **DoD:** cambios en `main` se reflejan en Airflow y DAGs actualizados.
+
+- **Tarea 12.5: Validación GE en CI**
+  - Chequeo básico: suites presentes, checkpoints válidos y build de Data Docs (si aplica).
+  - **DoD:** CI falla si faltan suites o checkpoints o si el config es inválido.
+
+---
+
+## Logs y evidencia de ejecución (entregable)
+- **Tarea 13.1: Estructurar carpeta `evidence/`**
+  - `evidence/logs/`: extractos de logs (Airflow, GE).
+  - `evidence/samples/`: muestras de outputs (parquet/json) y anomalías (si aplica).
+  - **DoD:** evidencia suficiente para reproducir un run.
+
+- **Tarea 13.2: Evidencia reproducible**
+  - Archivo `evidence/README.md` con:
+    - fecha/hora
+    - parámetros (`run_date`, `mode`)
+    - resultados esperados vs obtenidos
+  - **DoD:** otro miembro del equipo puede validar la ejecución solo con la evidencia.
+
+---
