@@ -219,3 +219,203 @@ Evaluar si se requiere particionamiento de la Fact_Entregas (por ejemplo, por A�
 Crear índices bitmap en las claves foráneas de las dimensiones si la cardinalidad es baja, o B-Tree si es alta.
 
 Validar que el modelo estrella esté optimizado para reducir el número de JOINs necesarios en tiempo de consulta.
+
+# Data Lake
+
+HU5: Construir un Data Lake en S3 que reciba datos crudos desde distintas fuentes
+1) Diseño de la estructura del Data Lake (raw y curated)
+
+Tarea 1.1: Definir convención de nombres y layout de paths en S3
+
+Salida: documento corto con naming + estructura.
+
+Propuesta de layout:
+
+s3://<lake-bucket>/raw/<source>/<dataset>/ingest_date=YYYY-MM-DD/part-*.json|csv|parquet
+
+s3://<lake-bucket>/curated/<domain>/<dataset>/event_date=YYYY-MM-DD/part-*.parquet
+
+s3://<lake-bucket>/quarantine/<source>/<dataset>/... (errores)
+
+s3://<lake-bucket>/_system/metadata/... (checkpoints, manifests)
+
+DoD: layout aprobado y documentado (incluye ejemplo real por dataset).
+
+Tarea 1.2: Definir particionado mínimo por zona
+
+Raw: ingest_date (siempre), opcional source_system
+
+Curated: por fecha de evento (event_date) o year/month/day según caso
+
+DoD: criterios de particionado escritos y aplicables por dataset.
+
+2) Provisionamiento de S3 con seguridad y escalabilidad
+
+Tarea 2.1: Crear bucket(s) y prefijos con controles base
+
+Versioning (recomendado), bloqueo de acceso público, políticas de bucket.
+
+DoD: bucket creado con “public access block” y versioning configurado.
+
+Tarea 2.2: Cifrado y llaves
+
+SSE-KMS para raw/curated, key policy alineada a roles de ingesta/ETL/consulta.
+
+DoD: objetos quedan cifrados; roles autorizados pueden leer/escribir.
+
+Tarea 2.3: Lifecycle y costos
+
+Reglas para transición de raw a IA/Glacier según retención (ej. 30/90/365 días).
+
+DoD: lifecycle activo y documentado con rationale de costos.
+
+Tarea 2.4: Auditoría y logging
+
+CloudTrail Data Events (si aplica), S3 server access logs (opcional), métricas.
+
+DoD: trazabilidad habilitada para operaciones críticas (write/delete/list).
+
+3) Scripts de ingesta en Python (a zona raw)
+
+Tarea 3.1: Especificación de “contrato de ingesta” por fuente
+
+Campos mínimos de metadata: source, dataset, ingest_ts, batch_id, schema_version.
+
+Formatos esperados, compresión, tamaño objetivo de archivos.
+
+DoD: contrato escrito para al menos 2 datasets piloto.
+
+Tarea 3.2: Construir framework de ingesta (Python)
+
+Componentes:
+
+Cargador por fuente (conectores)
+
+Normalizador de nombres/encoding
+
+Escritura a S3 con layout estándar
+
+Registro de manifest/checkpoint (para idempotencia)
+
+DoD: repo con estructura clara (src/, configs/, tests/, README), ejecución local y parametrizable.
+
+Tarea 3.3: Idempotencia y re-ejecución segura
+
+Estrategia recomendada:
+
+batch_id determinístico (por ventana/archivo)
+
+manifest en /_system/metadata/manifests/
+
+evitar duplicados al reintentar
+
+DoD: re-ejecutar un batch no duplica datos (validado con prueba).
+
+Tarea 3.4: Manejo de errores y “quarantine”
+
+Regla: registros/archivos inválidos van a quarantine/ con motivo y timestamp.
+
+DoD: se generan evidencias en quarantine/ + log; el pipeline no “traga” errores silenciosamente.
+
+Tarea 3.5: Logging y métricas operativas
+
+Logs estructurados (JSON), conteos: leídos, escritos, rechazados, duración.
+
+DoD: logs consumibles por CloudWatch y con correlación por batch_id.
+
+Tarea 3.6: Conectores iniciales (mínimo 2 fuentes)
+
+Ejemplos típicos: SFTP/FTPS, API REST, BD (RDS), archivos locales, Salesforce, SAP (según contexto).
+
+DoD: cada conector tiene config, prueba y ejemplo de ejecución.
+
+4) Orquestación mínima (para escalar y operar)
+
+Tarea 4.1: Definir modo de ejecución
+
+Opciones: cron en container, AWS Lambda, AWS Glue Python Shell, ECS, Step Functions.
+
+DoD: decisión tomada y documentada con pros/contras.
+
+Tarea 4.2: Scheduler y reintentos
+
+Política de reintento, backoff, alertas en fallas repetidas.
+
+DoD: existe ejecución programada y se puede forzar un run manual.
+
+HU6: Catalogar la información en AWS Glue para habilitar consultas gobernadas
+1) Modelado de catálogo (Glue Databases y Tables)
+
+Tarea 1.1: Definir bases de datos Glue por zona y dominio
+
+Ejemplo: dl_raw, dl_curated, o por dominio curated_finance, curated_collections.
+
+DoD: naming y criterio definidos y aplicados a piloto.
+
+Tarea 1.2: Definir “table standards”
+
+Ubicación S3, formato (ideal: Parquet en curated), particiones, owners.
+
+DoD: plantilla de definición de tabla lista (campos, particiones, parámetros).
+
+2) Población del Glue Catalog
+
+Tarea 2.1: Crear Glue Crawlers para raw (controlado)
+
+Clasificadores si hay CSV con delimitadores particulares o JSON complejo.
+
+DoD: crawler crea tablas raw y detecta particiones ingest_date.
+
+Tarea 2.2: Crear tablas curated preferiblemente por definición explícita
+
+En curated conviene definir schema “a mano” (IaC o scripts) para evitar drift.
+
+DoD: tablas curated con schema estable y particiones correctas.
+
+Tarea 2.3: Estrategia de evolución de esquema
+
+Versionado: schema_version, reglas de compatibilidad, columnas nuevas.
+
+DoD: procedimiento escrito + prueba con columna nueva sin romper consultas.
+
+3) Gobierno de acceso para “consultas gobernadas”
+
+Tarea 3.1: Definir modelo de permisos
+
+Por rol (Analyst, Engineer, Admin) y por zona (raw restringido, curated abierto parcial).
+
+DoD: matriz de permisos (quién ve qué datasets y con qué nivel).
+
+Tarea 3.2: Implementar control de acceso
+
+Recomendación (si buscas gobierno real): Lake Formation con permisos por tabla/columna y, si aplica, filtros por filas.
+
+Alternativa mínima: IAM + políticas en S3 + Athena Workgroups.
+
+DoD: un usuario/rol de analista consulta curated y no accede raw (validación real).
+
+Tarea 3.3: Tags de gobernanza
+
+LF-Tags (si usas Lake Formation) para acceso por clasificación (PII, confidencial, público).
+
+DoD: al menos 1 dataset etiquetado y con permisos basados en tags.
+
+4) Validación de consultas y operación
+
+Tarea 4.1: Configurar Athena para consulta gobernada
+
+Workgroup con límites, cifrado de resultados, ubicación controlada.
+
+DoD: consultas de ejemplo ejecutan en curated y registran resultados en bucket designado.
+
+Tarea 4.2: Suite de consultas de calidad
+
+Conteos por partición, nulos en claves, duplicados en IDs.
+
+DoD: set de queries guardadas (o script) que valida el dataset.
+
+Tarea 4.3: Observabilidad
+
+Alarmas por falla de crawler, fallas de ETL, crecimiento anómalo de particiones.
+
+DoD: al menos 2 alarmas activas con notificación.
