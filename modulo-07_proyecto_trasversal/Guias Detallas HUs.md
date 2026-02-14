@@ -600,3 +600,174 @@ Modo incremental y backfill
 Observabilidad y troubleshooting
 
 DoD: documento listo para auditoría operativa y handover (otro ingeniero lo ejecuta).
+
+# Streaming 
+
+HU8: Recibir datos de sensores en tiempo real para detectar anomalías de temperatura
+1) Contrato de eventos IoT (data contract)
+
+Tarea 1.1: Definir esquema del evento
+
+Campos mínimos recomendados: event_id, device_id, ts_utc, temperature_c, location_id (opcional), battery_pct (opcional), firmware_version (opcional).
+
+Formato: JSON (MVP) o Avro/Protobuf (cuando busques compatibilidad y evolución de esquema).
+
+DoD: esquema versionado (schema_version) y ejemplo de 5 eventos válidos.
+
+Tarea 1.2: Reglas de calidad del evento
+
+Validaciones: temperature_c numérico, ts_utc parseable, device_id no nulo, rango permitido.
+
+DoD: lista de reglas + política (rechazar, corregir, enviar a “dead-letter”).
+
+2) Motor de detección de anomalías (lógica de negocio)
+
+Tarea 2.1: Definir qué es “anomalía”
+
+MVP (rápido y auditable): umbral fijo (ej. > 80°C o < -10°C), delta súbito (cambio > X°C en Y segundos).
+
+Intermedio: z-score / desviación estándar sobre ventana móvil, percentiles por dispositivo.
+
+DoD: definición operativa por KPI con parámetros configurables por entorno.
+
+Tarea 2.2: Diseñar ventanas y semántica temporal
+
+Ventanas tumbling (por minuto) o sliding (cada 10s con ventana 1m).
+
+Manejo de eventos tardíos (late arrivals) y tolerancia de out-of-order.
+
+DoD: política de “lateness” documentada y aplicada en el consumidor.
+
+Tarea 2.3: Formato de salida de anomalías
+
+Campos recomendados: event_id, device_id, ts_utc, temperature_c, anomaly_type, score, window_start_ts, window_end_ts, rule_version.
+
+DoD: payload estándar de anomalía + ejemplos.
+
+HU9: Integrar eventos en un flujo de streaming continuo
+3) Infraestructura del stream (elige Kafka o Kinesis)
+Opción A: Kafka (self-managed, MSK, local Docker)
+
+Tarea 3A.1: Crear tópico(s)
+
+iot.temperature.readings y opcional iot.temperature.anomalies, iot.temperature.dlq.
+
+Particionado por device_id (para orden por dispositivo).
+
+DoD: tópicos creados, retención configurada, particiones definidas.
+
+Tarea 3A.2: Configurar parámetros operativos
+
+Retención, compresión, tamaño máximo de mensaje, acks, retries.
+
+DoD: configuración registrada en un archivo y reproducible (IaC o script).
+
+Opción B: Kinesis (en Amazon Web Services)
+
+Tarea 3B.1: Crear stream
+
+Shards dimensionados según TPS esperado.
+
+Partition key = device_id.
+
+DoD: stream creado, retención configurada, pruebas de throughput.
+
+Tarea 3B.2: Estrategia de escalado
+
+Re-sharding (manual o automático) según métricas.
+
+DoD: criterio de escalado documentado y verificable con una prueba simple.
+
+4) Simulador IoT (generación de eventos)
+
+Tarea 4.1: Construir simulador en Python
+
+Genera N dispositivos, rate configurable (eventos/seg), jitter, y “picos” controlados para anomalías.
+
+DoD: CLI tipo --devices 100 --rate 10 --anomaly-rate 0.02 --duration 300s.
+
+Tarea 4.2: Dataset de escenarios
+
+Escenarios: normal, sensor defectuoso (ruido), picos súbitos, deriva lenta, eventos tardíos.
+
+DoD: al menos 5 escenarios reproducibles con seed fija.
+
+5) Productor (ingesta al stream)
+
+Tarea 5.1: Implementar productor
+
+Envío con backpressure, retries, confirmación (acks) y batching.
+
+Clave de partición: device_id.
+
+DoD: productor sostiene el rate objetivo por 5 minutos sin pérdida no controlada.
+
+Tarea 5.2: Validación y DLQ
+
+Eventos inválidos van a DLQ (topic/stream separado) con motivo.
+
+DoD: se demuestra que eventos inválidos no rompen el pipeline y quedan auditables.
+
+6) Consumidor (stream processing continuo)
+
+Tarea 6.1: Implementar consumidor con cálculo de anomalías
+
+Framework posible: Spark Structured Streaming / Flink / aplicación Python (MVP) con windowing.
+
+DoD: consumidor produce eventos de anomalía bajo el escenario de picos.
+
+Tarea 6.2: Checkpointing y re-procesamiento
+
+Checkpoints para reinicio seguro.
+
+Semántica: “at-least-once” (MVP) con deduplicación por event_id si necesitas.
+
+DoD: detener y reiniciar el consumidor no genera duplicados en salida (o se controla con idempotencia).
+
+Tarea 6.3: Sink de salida
+
+Opciones: tópico/stream de anomalías, S3 (Parquet/JSON), base operativa (DynamoDB/Redis), alertas (SNS/Slack/email).
+
+DoD: anomalías quedan persistidas y consultables (al menos 1 sink operativo).
+
+7) Observabilidad, logs y evidencia de ejecución (entregable obligatorio)
+
+Tarea 7.1: Logging estructurado end-to-end
+
+Productor: eventos enviados, retries, latencia.
+
+Consumidor: eventos procesados, anomalías detectadas, tardíos, descartados, DLQ.
+
+DoD: logs JSON con correlation_id o event_id para trazar punta a punta.
+
+Tarea 7.2: Métricas y dashboards mínimos
+
+Métricas: TPS ingest, lag/iterator age, error rate, anomalías/min, latencia p50/p95.
+
+DoD: dashboard mínimo (o salida por consola + archivo) con métricas clave.
+
+Tarea 7.3: Evidencia reproducible
+
+Capturas o export de:
+
+logs del productor y consumidor
+
+muestra de mensajes en el tópico/stream
+
+muestra de anomalías en el sink
+
+DoD: carpeta evidence/ con logs y samples, y un README de cómo reproducir.
+
+8) Seguridad y operación (mínimo viable)
+
+Tarea 8.1: Gestión de secretos
+
+Credenciales y endpoints por variables de entorno/secret manager.
+
+DoD: nada de credenciales hardcodeadas en repo.
+
+Tarea 8.2: Permisos y cifrado
+
+Acceso mínimo necesario (producer write, consumer read, sink write).
+
+DoD: roles separados y verificación de permisos.
