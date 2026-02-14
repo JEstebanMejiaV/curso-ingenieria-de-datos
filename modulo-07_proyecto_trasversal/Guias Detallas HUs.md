@@ -1012,3 +1012,280 @@ flowchart LR
   - **DoD:** otro miembro del equipo puede validar la ejecución solo con la evidencia.
 
 ---
+
+# Cloud & DevOps en AWS (HU14 + HU15)
+Backlog de tareas específicas para:
+- **HU14**: Desplegar toda la infraestructura del proyecto con **Terraform** (modular).
+- **HU15**: Visualizar indicadores operativos en **QuickSight** (mínimo 3 métricas).
+- Entregables: IaC modular (S3, Glue, Redshift, Lambda, IAM, CloudWatch), dashboard, evidencia funcional y monitoreo.
+
+---
+
+## Alcance y entregables
+
+### HU14 (Terraform)
+- Terraform modular por componente: **S3, Glue, Redshift, Lambda, IAM, CloudWatch**.
+- Separación por ambientes (dev, prod) con variables y state remoto.
+- Repositorio reproducible: `terraform fmt`, `validate`, `plan`, `apply`.
+
+### HU15 (QuickSight)
+- Dashboard operativo con **mínimo 3 métricas** (recomendado 5).
+- Fuente de datos: Athena (S3 + Glue) y/o Redshift (si el mart vive allí).
+- Refresh programado (si SPICE) y permisos de acceso.
+
+### Evidencia y monitoreo
+- CloudWatch Dashboard y alarmas principales.
+- Capturas o exportables de:
+  - recursos desplegados (Terraform output)
+  - dashboard QuickSight
+  - alarmas y logs clave
+
+---
+
+## Estructura del repositorio (propuesta)
+```
+.
+├─ terraform/
+│  ├─ modules/
+│  │  ├─ s3_lake/
+│  │  ├─ iam/
+│  │  ├─ glue/
+│  │  ├─ redshift/
+│  │  ├─ lambda/
+│  │  └─ cloudwatch/
+│  ├─ envs/
+│  │  ├─ dev/
+│  │  │  ├─ main.tf
+│  │  │  ├─ variables.tf
+│  │  │  ├─ outputs.tf
+│  │  │  └─ dev.tfvars
+│  │  └─ prod/
+│  │     ├─ main.tf
+│  │     ├─ variables.tf
+│  │     ├─ outputs.tf
+│  │     └─ prod.tfvars
+│  ├─ backend/
+│  │  ├─ state_bucket.tf
+│  │  └─ lock_table.tf
+│  └─ README.md
+├─ quicksight/
+│  ├─ datasets/
+│  │  ├─ kpis_delivery_daily.sql
+│  │  └─ anomalies_daily.sql
+│  ├─ dashboard_spec.md
+│  └─ screenshots/
+└─ evidence/
+   ├─ terraform_outputs/
+   ├─ monitoring/
+   └─ quicksight/
+```
+
+---
+
+
+## HU14: Infraestructura completa con Terraform (modular)
+
+### 14.1 Fundaciones de IaC
+- **Tarea 14.1: Definir convenciones de IaC**
+  - Naming (prefijos por proyecto y ambiente), tagging estándar, estructura de módulos.
+  - **DoD:** guía corta de convenciones aplicada en el código.
+
+- **Tarea 14.2: Backend remoto para Terraform**
+  - S3 bucket para state + DynamoDB para locking + KMS para cifrado.
+  - **DoD:** state remoto funcionando, locking activo y sin state local persistente.
+
+- **Tarea 14.3: Separación por ambientes**
+  - `envs/dev` y `envs/prod` con `*.tfvars` y outputs.
+  - **DoD:** `plan` y `apply` se pueden ejecutar por ambiente sin cambios manuales.
+
+---
+
+### 14.2 Módulo S3 (Data Lake y buckets operativos)
+- **Tarea 14.4: Implementar módulo `s3_lake`**
+  - Buckets y prefijos:
+    - Data Lake: raw, curated, mart, quarantine, system (según tu diseño previo).
+    - Resultados de Athena (si aplica).
+    - Logs de acceso (opcional) y bucket para Data Docs (si lo usas).
+  - Controles: bloqueo de acceso público, versioning, SSE-KMS, lifecycle, políticas.
+  - **DoD:** buckets creados con cifrado KMS, lifecycle activo y políticas mínimas.
+
+- **Tarea 14.5: Políticas de bucket por rol**
+  - Roles: ingesta, ETL, analista, QuickSight, admin.
+  - **DoD:** un rol de analista consulta curated/mart pero no escribe raw.
+
+---
+
+### 14.3 Módulo IAM (mínimo privilegio)
+- **Tarea 14.6: Implementar módulo `iam`**
+  - Roles y policies:
+    - `role_glue_job`
+    - `role_lambda_ingest`
+    - `role_quicksight_access`
+    - `role_redshift_access` (si aplica)
+    - `role_airflow_orchestrator` (si lo orquestas desde AWS)
+  - Trust policies correctas (Glue, Lambda, QuickSight).
+  - **DoD:** roles creados, policies acotadas por bucket/prefix y servicios necesarios.
+
+- **Tarea 14.7: Modelo de permisos por zonas**
+  - Raw restringido, curated y mart más abiertos (según gobierno definido).
+  - **DoD:** documento de matriz de acceso + enforcement en IAM/S3.
+
+---
+
+### 14.4 Módulo Glue (Catalog + Crawlers + opcional Jobs)
+- **Tarea 14.8: Implementar módulo `glue`**
+  - Glue databases (por zona o dominio), crawlers para raw y curated.
+  - Clasificadores si hay CSV/JSON complejos.
+  - **DoD:** tablas en Glue aparecen y se pueden consultar con Athena.
+
+- **Tarea 14.9: Seguridad y configuración Glue**
+  - Glue Security Configuration (cifrado logs, cifrado en S3, etc.) si aplica.
+  - **DoD:** configuración aplicada a crawlers y jobs (si los creas).
+
+---
+
+### 14.5 Módulo Redshift (opcional si lo usas como serving)
+- **Tarea 14.10: Implementar módulo `redshift`**
+  - Decidir: Cluster clásico o Redshift Serverless.
+  - Recursos: namespace/workgroup (serverless) o cluster, subnet group, parameter group, IAM role, logging.
+  - **DoD:** Redshift disponible, con logging habilitado y conectividad controlada.
+
+- **Tarea 14.11: Esquema destino y observabilidad**
+  - Crear esquema y tablas base (si aplica) o dejarlo para migraciones posteriores.
+  - **DoD:** tabla de KPIs puede poblarse y consultarse.
+
+---
+
+### 14.6 Módulo Lambda (utilidades/ingesta/eventos)
+- **Tarea 14.12: Implementar módulo `lambda`**
+  - Funciones típicas:
+    - ingesta liviana o normalización (si aplica)
+    - housekeeping (por ejemplo, publicar manifest, mover a quarantine)
+  - Config: env vars, VPC (solo si necesario), concurrency, DLQ, permisos.
+  - **DoD:** Lambda desplegada, invocable y con logs en CloudWatch.
+
+---
+
+### 14.7 Módulo CloudWatch (logs, métricas, alarmas, dashboards)
+- **Tarea 14.13: Implementar módulo `cloudwatch`**
+  - Log groups con retención definida.
+  - Dashboards con métricas mínimas: Glue jobs, Lambda errors, Redshift health.
+  - **DoD:** dashboard visible y con datos en tiempo real.
+
+- **Tarea 14.14: Alarmas principales**
+  - Glue job failure (si aplica), Lambda errors > 0, throttles, Redshift CPU/storage, DLQ depth.
+  - Canal de notificación (SNS) opcional.
+  - **DoD:** al menos 3 alarmas creadas y probadas (simulación de falla).
+
+---
+
+### 14.8 Calidad de IaC y operabilidad
+- **Tarea 14.15: Outputs y documentación de despliegue**
+  - Outputs: nombres de buckets, ARNs de roles, endpoints, ids de crawlers.
+  - **DoD:** `terraform output` entrega lo necesario para operar el proyecto.
+
+- **Tarea 14.16: Controles de calidad Terraform**
+  - `terraform fmt`, `validate`, `tflint` (opcional), `checkov`/`tfsec` (opcional).
+  - **DoD:** pipeline CI falla si IaC no cumple formato y validación.
+
+---
+
+## HU15: Dashboard operativo en QuickSight (mínimo 3 métricas)
+
+### 15.1 Definir métricas y fuentes
+- **Tarea 15.1: Seleccionar métricas del dashboard**
+  - Mínimo 3 métricas sugeridas:
+    1) **On-time delivery rate (OTD)** desde `mart_kpis_delivery_daily`
+    2) **Lead time promedio** (minutos u horas)
+    3) **Anomalías de temperatura por día** desde el sink de anomalías
+  - Métricas adicionales recomendadas:
+    - volumen de pedidos/entregas
+    - tasa de fallas de pipeline (por día)
+  - **DoD:** documento con definiciones, fórmula, granularidad y filtros.
+
+- **Tarea 15.2: Definir fuentes de datos**
+  - Opción A: Athena (S3 + Glue) como principal.
+  - Opción B: Redshift para serving de KPIs, Athena para anomalías.
+  - **DoD:** decisión tomada y documentada según performance/costos.
+
+---
+
+### 15.2 Preparar datasets para QuickSight
+- **Tarea 15.3: Crear Data Source en QuickSight**
+  - Configurar conexión a Athena o Redshift.
+  - **DoD:** conexión probada y con permisos correctos.
+
+- **Tarea 15.4: Construir datasets**
+  - Dataset 1: `kpis_delivery_daily` (mart)
+  - Dataset 2: `anomalies_daily` (streaming sink agregada)
+  - Modelado: tipos de datos, fechas, dimensiones (tienda, zona, device).
+  - **DoD:** datasets listos, con refresh si SPICE y filtros funcionando.
+
+- **Tarea 15.5: Refresh y consistencia**
+  - Si SPICE: refresh schedule diario u horario.
+  - Validar que el refresh no falle por permisos o cambios de esquema.
+  - **DoD:** refresh programado y evidencia de última actualización.
+
+---
+
+### 15.3 Construir el dashboard (análisis y publicación)
+- **Tarea 15.6: Crear análisis con visuales mínimos**
+  - Recomendación de visuales:
+    - KPI card: OTD
+    - línea: lead time promedio por día
+    - barras: anomalías por día (y por tipo)
+  - Filtros: rango de fechas, tienda/zona, device (si aplica).
+  - **DoD:** análisis listo con al menos 3 visuales y filtros operativos.
+
+- **Tarea 15.7: Publicar dashboard**
+  - Compartir con roles/grupos necesarios.
+  - **DoD:** dashboard publicado y accesible por los usuarios definidos.
+
+---
+
+### 15.4 Evidencia y monitoreo del dashboard
+- **Tarea 15.8: Evidencia funcional**
+  - Capturas en `quicksight/screenshots/` o export PDF (si aplica).
+  - **DoD:** evidencia muestra las 3 métricas y filtros aplicados.
+
+- **Tarea 15.9: Monitoreo de refrescos y errores**
+  - Registrar fallas de refresh (manual o vía automatización/API si lo implementas).
+  - **DoD:** procedimiento documentado para diagnosticar fallas (permisos, esquema, SPICE).
+
+---
+
+## CI/CD (GitHub Actions) para Terraform y assets del dashboard
+- **Tarea 16.1: Pipeline CI para Terraform**
+  - Pasos mínimos: `fmt`, `validate`, `plan` en PR.
+  - (Opcional) `apply` en `main` con aprobación manual.
+  - **DoD:** PR bloquea merges si falla IaC.
+
+- **Tarea 16.2: Artefactos de evidencia**
+  - Subir outputs del plan y screenshots del dashboard como artefactos (si aplica).
+  - **DoD:** cada release tiene evidencia adjunta o versionada.
+
+Ejemplo de workflow (referencia):
+```yaml
+name: terraform-ci
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: fmt
+        run: terraform -chdir=terraform/envs/dev fmt -check -recursive
+      - name: init
+        run: terraform -chdir=terraform/envs/dev init
+      - name: validate
+        run: terraform -chdir=terraform/envs/dev validate
+      - name: plan
+        run: terraform -chdir=terraform/envs/dev plan -var-file=dev.tfvars
+```
+
+---
