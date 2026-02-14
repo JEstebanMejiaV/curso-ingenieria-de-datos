@@ -419,3 +419,184 @@ Tarea 4.3: Observabilidad
 Alarmas por falla de crawler, fallas de ETL, crecimiento anómalo de particiones.
 
 DoD: al menos 2 alarmas activas con notificación.
+
+# Spark
+
+HU7: Transformar pedidos y entregas en PySpark para KPIs de cumplimiento y eficiencia
+1) Definición funcional y de datos (antes de codificar)
+
+Tarea 1.1: Inventario de datasets y llaves de unión
+
+Identificar fuentes: orders, deliveries, (opcional) drivers, stores, routes.
+
+Definir llaves: order_id, delivery_id, customer_id, store_id, etc.
+
+DoD: diccionario mínimo con columnas, tipos esperados, llaves primarias y llaves de join.
+
+Tarea 1.2: Definir KPIs (definición operativa y fórmula)
+
+Ejemplos típicos:
+
+OTD (On-time Delivery): entregas dentro de SLA.
+
+Lead time: delivered_ts - order_created_ts.
+
+Pickup time: pickup_ts - assigned_ts.
+
+First-attempt success (si hay reintentos).
+
+Eficiencia por repartidor / tienda: entregas por hora, km por entrega (si hay distancia).
+
+DoD: documento con KPIs, umbrales, granularidad (día, tienda, zona) y reglas de exclusión (canceladas, devueltas).
+
+Tarea 1.3: Reglas de limpieza y estandarización
+
+Normalización de timestamps y timezones, estados válidos, deduplicación, nulos permitidos.
+
+DoD: lista de reglas con ejemplos (input malo vs output esperado).
+
+2) Diseño del ETL batch (arquitectura lógica)
+
+Tarea 2.1: Diseñar capas de salida (curated y kpi marts)
+
+curated/orders_enriched, curated/deliveries_enriched, mart/kpis_delivery_daily.
+
+Definir particionado: event_date=YYYY-MM-DD y/o country/store_id.
+
+DoD: layout en S3 documentado y consistente con HU5/HU6.
+
+Tarea 2.2: Decidir motor de ejecución
+
+Alternativas típicas: AWS Glue Spark, EMR, EMR on EKS, Databricks.
+
+DoD: decisión tomada con parámetros base (Spark conf, tamaño, autoscaling si aplica).
+
+Tarea 2.3: Definir modo incremental
+
+Ventana por fecha (event_date) o watermark (updated_ts) para cargas diarias.
+
+DoD: estrategia incremental definida y aplicable a re-procesos (backfill).
+
+3) Implementación PySpark (ETL batch funcional)
+
+Tarea 3.1: Skeleton del job PySpark
+
+Entrada de parámetros: --run_date, --env, --input_paths, --output_path, --mode (full/incremental).
+
+Estructura modular: read, clean, transform, kpis, write.
+
+DoD: job corre end-to-end con dataset de muestra y genera output.
+
+Tarea 3.2: Lectura robusta de fuentes
+
+Lectura desde S3 (CSV/JSON/Parquet) con schemas explícitos cuando sea posible.
+
+DoD: lectura tolera columnas nuevas (cuando aplique) y valida tipos críticos.
+
+Tarea 3.3: Limpieza y normalización
+
+Parseo de fechas, estandarización de estados, trimming, normalización de IDs, deduplicación.
+
+DoD: métricas de limpieza (registros descartados, duplicados removidos) quedan registradas.
+
+Tarea 3.4: Enriquecimiento y joins
+
+Join pedidos-entregas con control de cardinalidad (evitar multiplicaciones).
+
+DoD: checks de cardinalidad (por ejemplo, order_id único en salida enriquecida).
+
+Tarea 3.5: Cálculo de KPIs
+
+KPIs por dimensiones: día, tienda, zona, carrier/repartidor (según datos).
+
+DoD: tablas KPI generadas con columnas definidas y totales coherentes.
+
+Tarea 3.6: Controles de calidad y validaciones
+
+Validaciones: rangos de tiempo, estados válidos, SLA no negativo, conteos por partición.
+
+DoD: el job falla con error claro si se violan umbrales críticos (ej. demasiados nulos en order_id).
+
+4) Escritura a S3 y opción Redshift
+
+Tarea 4.1: Escritura a S3 en formato analítico
+
+Salida en Parquet + particionado + compresión.
+
+DoD: outputs particionados y listos para Glue Catalog/Athena.
+
+Tarea 4.2: Registro en Glue Catalog (si aplica en tu flujo)
+
+Actualizar particiones (crawler o MSCK REPAIR / job de particiones).
+
+DoD: tablas consultables desde Athena con particiones correctas.
+
+Tarea 4.3 (opcional): Carga a Redshift
+
+Estrategia:
+
+O bien escribir a S3 y hacer COPY (recomendado).
+
+O con conector Spark-Redshift (según plataforma).
+
+Definir keys: dist/sort keys y esquema destino.
+
+DoD: tabla en Redshift poblada y reconciliada contra S3 (conteos y sumatorias clave).
+
+5) Performance, costos y confiabilidad
+
+Tarea 5.1: Tuning básico de Spark
+
+Ajuste de particiones, spark.sql.shuffle.partitions, broadcast joins controlados, skew handling.
+
+DoD: runtime y costos dentro de un baseline objetivo (definido por ti), sin OOM.
+
+Tarea 5.2: Manejo de backfills
+
+Capacidad de reprocesar rangos de fechas y sobrescritura segura por partición.
+
+DoD: backfill de N días funciona sin duplicar.
+
+Tarea 5.3: Observabilidad
+
+Logs estructurados, métricas (duración, registros leídos/escritos, rechazos), alarmas por fallas.
+
+DoD: se puede diagnosticar una falla con logs + métricas sin “adivinar”.
+
+6) Pruebas y aseguramiento
+
+Tarea 6.1: Dataset de prueba y casos borde
+
+Casos: entregas sin pedido, pedido cancelado, timestamps faltantes, duplicados.
+
+DoD: suite de pruebas con al menos 6 casos representativos.
+
+Tarea 6.2: Pruebas unitarias de funciones críticas
+
+Limpieza de IDs, parseo de fechas, cálculo de SLA/OTD, deduplicación.
+
+DoD: tests ejecutan en CI local (o GitHub Actions si lo usas).
+
+7) Documento técnico del flujo (entregable obligatorio)
+
+Tarea 7.1: Documento técnico del ETL
+
+Contenido mínimo:
+
+Objetivo y alcance
+
+Inputs (tablas, paths, schemas)
+
+Reglas de limpieza
+
+Transformaciones y joins (con supuestos de cardinalidad)
+
+KPIs (definiciones y fórmulas)
+
+Outputs (S3/Redshift, particiones)
+
+Modo incremental y backfill
+
+Observabilidad y troubleshooting
+
+DoD: documento listo para auditoría operativa y handover (otro ingeniero lo ejecuta).
