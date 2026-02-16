@@ -3,9 +3,6 @@
 ## Objetivo
 Crear un clúster de Apache Kafka gestionado (Amazon MSK), configurar una máquina cliente (EC2) y desarrollar scripts en Python para producir y consumir datos simulados en tiempo real.
 
-## Duración estimada
-- 1 a 1.5 horas  
-- Nota: la creación del clúster suele tardar 15 a 30 minutos
 
 ## Costos y advertencia
 Este taller usa recursos que no siempre son gratuitos (MSK, y opcionalmente Flink Studio/Analytics). El costo por una sesión corta suele ser bajo, pero **es crítico borrar todos los recursos al finalizar** (ver sección “Limpieza final”).
