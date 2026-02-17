@@ -1,0 +1,223 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amazon MSK Workshop (Fixed Syntax)
+
+Parameters:
+  NamePrefix:
+    Type: String
+    Default: msk-workshop
+  VpcCidr:
+    Type: String
+    Default: 10.40.0.0/16
+  PublicSubnetCidrA: {Type: String, Default: 10.40.0.0/20}
+  PublicSubnetCidrB: {Type: String, Default: 10.40.16.0/20}
+  PublicSubnetCidrC: {Type: String, Default: 10.40.32.0/20}
+  PrivateSubnetCidrA: {Type: String, Default: 10.40.128.0/20}
+  PrivateSubnetCidrB: {Type: String, Default: 10.40.144.0/20}
+  PrivateSubnetCidrC: {Type: String, Default: 10.40.160.0/20}
+  
+  UseThreeAzs:
+    Type: String
+    AllowedValues: ['true','false']
+    Default: 'true'
+  AzIndexA: {Type: Number, Default: 0}
+  AzIndexB: {Type: Number, Default: 1}
+  AzIndexC: {Type: Number, Default: 2}
+
+  AllowedCidrForUI:
+    Type: String
+    Default: 0.0.0.0/0
+  
+  KeyPairName:
+    Type: String
+    Default: ''
+
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+
+  KafkaVersion: {Type: String, Default: '3.6.0'}
+  BrokerInstanceType: {Type: String, Default: kafka.m5.large}
+  BrokerEbsVolumeGiB: {Type: Number, Default: 100}
+  NumberOfBrokerNodes: {Type: Number, Default: 3}
+  EnableEnhancedMonitoring:
+    Type: String
+    AllowedValues: ['DEFAULT','PER_BROKER','PER_TOPIC_PER_BROKER','PER_TOPIC_PER_PARTITION']
+    Default: PER_BROKER
+
+  FirehoseTopicName: {Type: String, Default: firehose-demo}
+  LambdaConsumerTopicName: {Type: String, Default: avro-demo}
+  GlueRegistryName: {Type: String, Default: msk-avro-registry}
+  GlueSchemaName: {Type: String, Default: msk-avro-schema}
+  CreateServerlessCluster:
+    Type: String
+    AllowedValues: ['true','false']
+    Default: 'true'
+
+Conditions:
+  Use3Az: !Equals [!Ref UseThreeAzs, 'true']
+  CreateServerless: !Equals [!Ref CreateServerlessCluster, 'true']
+  HasKeyPair: !Not [!Equals [!Ref KeyPairName, '']]
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{Key: Name, Value: !Sub '${NamePrefix}-vpc'}]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: [{Key: Name, Value: !Sub '${NamePrefix}-igw'}]
+
+  AttachIgw:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref Vpc, InternetGatewayId: !Ref InternetGateway}
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Vpc}
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIgw
+    Properties: {RouteTableId: !Ref PublicRouteTable, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway}
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetCidrA
+      AvailabilityZone: !Select [!Ref AzIndexA, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetCidrB
+      AvailabilityZone: !Select [!Ref AzIndexB, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: Use3Az
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetCidrC
+      AvailabilityZone: !Select [!Ref AzIndexC, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicSubnetA, RouteTableId: !Ref PublicRouteTable}
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicSubnetB, RouteTableId: !Ref PublicRouteTable}
+  PublicSubnetCRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: Use3Az
+    Properties: {SubnetId: !Ref PublicSubnetC, RouteTableId: !Ref PublicRouteTable}
+
+  NatEip: {Type: AWS::EC2::EIP, DependsOn: AttachIgw, Properties: {Domain: vpc}}
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties: {AllocationId: !GetAtt NatEip.AllocationId, SubnetId: !Ref PublicSubnetA}
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref Vpc}
+
+  PrivateDefaultRoute:
+    Type: AWS::EC2::Route
+    Properties: {RouteTableId: !Ref PrivateRouteTable, DestinationCidrBlock: 0.0.0.0/0, NatGatewayId: !Ref NatGateway}
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: !Ref PrivateSubnetCidrA, AvailabilityZone: !Select [!Ref AzIndexA, !GetAZs '']}
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref Vpc, CidrBlock: !Ref PrivateSubnetCidrB, AvailabilityZone: !Select [!Ref AzIndexB, !GetAZs '']}
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: Use3Az
+    Properties: {VpcId: !Ref Vpc, CidrBlock: !Ref PrivateSubnetCidrC, AvailabilityZone: !Select [!Ref AzIndexC, !GetAZs '']}
+
+  PrivateSubnetARouteAssoc: {Type: AWS::EC2::SubnetRouteTableAssociation, Properties: {SubnetId: !Ref PrivateSubnetA, RouteTableId: !Ref PrivateRouteTable}}
+  PrivateSubnetBRouteAssoc: {Type: AWS::EC2::SubnetRouteTableAssociation, Properties: {SubnetId: !Ref PrivateSubnetB, RouteTableId: !Ref PrivateRouteTable}}
+  PrivateSubnetCRouteAssoc: {Type: AWS::EC2::SubnetRouteTableAssociation, Condition: Use3Az, Properties: {SubnetId: !Ref PrivateSubnetC, RouteTableId: !Ref PrivateRouteTable}}
+
+  MskBrokerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: MSK broker SG
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 9098
+          ToPort: 9098
+          SourceSecurityGroupId: !Ref ClientSG
+        - IpProtocol: tcp
+          FromPort: 9094
+          ToPort: 9094
+          SourceSecurityGroupId: !Ref ClientSG
+
+  ClientSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Client SG
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedCidrForUI
+
+  MskBrokerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/msk/${NamePrefix}/broker'
+      RetentionInDays: 14
+
+  # MSK CLUSTER CORREGIDO (CloudWatchLogs con W mayúscula)
+  MskCluster:
+    Type: AWS::MSK::Cluster
+    Properties:
+      ClusterName: !Sub '${NamePrefix}-provisioned'
+      KafkaVersion: !Ref KafkaVersion
+      NumberOfBrokerNodes: !Ref NumberOfBrokerNodes
+      EnhancedMonitoring: !Ref EnableEnhancedMonitoring
+      BrokerNodeGroupInfo:
+        InstanceType: !Ref BrokerInstanceType
+        ClientSubnets: !If [Use3Az, [!Ref PrivateSubnetA, !Ref PrivateSubnetB, !Ref PrivateSubnetC], [!Ref PrivateSubnetA, !Ref PrivateSubnetB]]
+        SecurityGroups: [!Ref MskBrokerSG]
+        StorageInfo: {EBSStorageInfo: {VolumeSize: !Ref BrokerEbsVolumeGiB}}
+      ClientAuthentication: {Sasl: {Iam: {Enabled: true}}}
+      EncryptionInfo: {EncryptionInTransit: {InCluster: true, ClientBroker: TLS}}
+      LoggingInfo:
+        BrokerLogs:
+          CloudWatchLogs: # CORRECCIÓN AQUÍ
+            Enabled: true
+            LogGroup: !Ref MskBrokerLogGroup
+
+  # GLUE CORREGIDO (DependsOn y Name)
+  GlueRegistry:
+    Type: AWS::Glue::Registry
+    Properties:
+      Name: !Ref GlueRegistryName
+
+  GlueAvroSchema:
+    Type: AWS::Glue::Schema
+    DependsOn: GlueRegistry
+    Properties:
+      Registry: { Name: !Ref GlueRegistryName }
+      Name: !Ref GlueSchemaName
+      DataFormat: AVRO
+      Compatibility: BACKWARD
+      SchemaDefinition: |
+        {"type":"record","name":"Demo","fields":[{"name":"id","type":"string"}]}
+
+Outputs:
+  MskArn: {Value: !Ref MskCluster}
