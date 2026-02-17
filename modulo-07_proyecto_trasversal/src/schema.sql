@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS clientes (
     id_cliente VARCHAR(50) PRIMARY KEY,
     nombre VARCHAR(200) NOT NULL,
     zona VARCHAR(50) NOT NULL,
-    tipo_cliente VARCHAR(50) NOT NULL,
+    tipo_cliente VARCHAR(50) NOT NULL
     
     -- Constraints de dominio (validación de valores permitidos)
-    CONSTRAINT chk_zona CHECK (zona IN ('Norte', 'Sur', 'Oriente', 'Occidente', 'Centro')),
-    CONSTRAINT chk_tipo_cliente CHECK (tipo_cliente IN ('Retail', 'Farmacéutico', 'Supermercado', 'Ecommerce', 'Restaurante'))
+    --CONSTRAINT chk_zona CHECK (zona IN ('Norte', 'Sur', 'Oriente', 'Occidente', 'Centro'))
+    --CONSTRAINT chk_tipo_cliente CHECK (tipo_cliente IN ('Retail', 'Farmacéutico', 'Supermercado', 'Ecommerce', 'Restaurante'))
 );
 
 COMMENT ON TABLE clientes IS 'Tabla maestra de clientes (~300 registros)';
