@@ -1,0 +1,65 @@
+
+
+-- A. TABLA CLIENTES
+CREATE SEQUENCE clientes_id_seq;
+CREATE TABLE public.clientes (
+    id_cliente TEXT PRIMARY KEY DEFAULT ('CL' || LPAD(nextval('clientes_id_seq')::text, 4, '0')),
+    nombre VARCHAR(100) NOT NULL,
+    zona VARCHAR(50),
+    tipo_cliente VARCHAR(50)
+);
+
+-- B. TABLA CATÁLOGO (PRODUCTOS)
+CREATE SEQUENCE catalogo_id_seq;
+CREATE TABLE public.catalogo (
+    id_producto TEXT PRIMARY KEY DEFAULT ('P' || LPAD(nextval('catalogo_id_seq')::text, 5, '0')),
+    nombre_producto VARCHAR(100),
+    precio DECIMAL(10,2),
+    tipo_entrega VARCHAR(50)
+);
+
+-- C. TABLA PEDIDOS (Relaciona Clientes y Catálogo)
+CREATE SEQUENCE pedidos_id_seq;
+CREATE TABLE public.pedidos (
+    id_pedido TEXT PRIMARY KEY DEFAULT ('PO' || LPAD(nextval('pedidos_id_seq')::text, 4, '0')),
+    id_cliente TEXT REFERENCES public.clientes(id_cliente),
+    id_producto TEXT REFERENCES public.catalogo(id_producto),
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    monto DECIMAL(10,2),
+    estado VARCHAR(20) CHECK (estado IN ('CREADO', 'PROCESANDO', 'ENTREGADO', 'ALERTA'))
+);
+
+-- D. TABLA ENTREGAS (Relación 1:1 con Pedidos)
+CREATE TABLE public.entregas (
+    id_pedido TEXT PRIMARY KEY REFERENCES public.pedidos(id_pedido),
+    conductor VARCHAR(100),
+    vehiculo VARCHAR(20),
+    tiempo_estimado INT
+);
+
+
+--------------------------------------------------------------------
+-- SincronizarClientes
+SELECT setval('clientes_id_seq', 
+    (SELECT COALESCE(MAX(SUBSTRING(id_cliente FROM '[0-9]+')::INTEGER), 0) FROM public.clientes));
+
+-- Sincronizar Catálogo
+SELECT setval('catalogo_id_seq', 
+    (SELECT COALESCE(MAX(SUBSTRING(id_producto FROM '[0-9]+')::INTEGER), 0) FROM public.catalogo));
+
+-- Sincronizar Pedidos
+SELECT setval('pedidos_id_seq', 
+    (SELECT COALESCE(MAX(SUBSTRING(id_pedido FROM '[0-9]+')::INTEGER), 0) FROM public.pedidos));
+--------------------------------------------------------------------
+
+
+
+Totales
+
+SELECT 'Clientes' AS "Tabla", COUNT(*) AS "Total Registros" FROM public.clientes
+UNION ALL
+SELECT 'Productos (Catálogo)' AS "Tabla", COUNT(*) AS "Total Registros" FROM public.catalogo
+UNION ALL
+SELECT 'Pedidos' AS "Tabla", COUNT(*) AS "Total Registros" FROM public.pedidos
+UNION ALL
+SELECT 'Entregas' AS "Tabla", COUNT(*) AS "Total Registros" FROM public.entregas;
