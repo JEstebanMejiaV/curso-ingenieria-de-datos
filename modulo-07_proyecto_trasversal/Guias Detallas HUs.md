@@ -267,7 +267,7 @@ Curated: por fecha de evento (event_date) o year/month/day según caso
 
 DoD: criterios de particionado escritos y aplicables por dataset.
 
-2) Provisionamiento de S3 con seguridad y escalabilidad
+### 2) Provisionamiento de S3 con seguridad y escalabilidad
 
 #### Tarea 2.1 - Crear bucket(s) y prefijos con controles base
 
@@ -301,6 +301,7 @@ DoD: trazabilidad habilitada para operaciones críticas (write/delete/list).
 
 #### Tarea 3.1 - Especificación de “contrato de ingesta” por fuente
 
+## Pendiente - Clase de Gobierno de Datos
 
 Campos mínimos de metadata: source, dataset, ingest_ts, batch_id, schema_version.
 
@@ -319,12 +320,15 @@ Normalizador de nombres/encoding
 
 Escritura a S3 con layout estándar
 
+Estretagia de loggging 
+
 Registro de manifest/checkpoint (para idempotencia)
 
 DoD: repo con estructura clara (src/, configs/, tests/, README), ejecución local y parametrizable.
 
 #### Tarea 3.3 - Idempotencia y re-ejecución segura
 
+## Pendinte Clase de DataOps
 
 Estrategia recomendada:
 
@@ -361,13 +365,13 @@ DoD: cada conector tiene config, prueba y ejemplo de ejecución.
 
 #### Tarea 4.1 - Definir modo de ejecución
 
+## Pendinte Clase de DataOps
 
-Opciones: cron en container, AWS Lambda, AWS Glue Python Shell, ECS, Step Functions.
+Opciones: cron en container, EMR, AWS Lambda, AWS Glue Python Shell, ECS, Step Functions.
 
 DoD: decisión tomada y documentada con pros/contras.
 
 #### Tarea 4.2 - Scheduler y reintentos
-
 
 Política de reintento, backoff, alertas en fallas repetidas.
 
@@ -466,7 +470,7 @@ DoD: al menos 2 alarmas activas con notificación.
 
 ### HU7 - Transformar pedidos y entregas en PySpark para KPIs de cumplimiento y eficiencia
 
-1) Definición funcional y de datos (antes de codificar)
+#### Definición funcional y de datos (antes de codificar)
 
 #### Tarea 1.1 - Inventario de datasets y llaves de unión
 
