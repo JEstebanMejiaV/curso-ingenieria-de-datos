@@ -17,7 +17,36 @@ Este taller usa recursos que no siempre son gratuitos (MSK, y opcionalmente Flin
 
 ---
 
+## Arquitectura lógica
+
+Componentes y ubicación:
+
+- **Subred pública**
+  - EC2 (cliente Kafka) con IP pública para SSH
+- **Subredes privadas**
+  - Brokers de MSK
+  - Lambda (con ENIs en la VPC)
+  - (Opcional) Flink Studio con *Networking* en VPC
+
+Conectividad de salida:
+- Subredes privadas salen a Internet a través del **NAT Gateway** (ubicado en una subred pública).
+- Esto permite que **Lambda** y **Flink Studio** llamen APIs de AWS (por ejemplo Firehose, CloudWatch, Glue).
+
+---
+
 # Parte 1: MSK + EC2 + Python Producer/Consumer
+
+## Conceptos clave de red
+
+### ¿Por qué subredes privadas?
+Por seguridad. En una subred privada los recursos **no tienen IP pública**, por lo que **nadie desde Internet puede iniciar conexiones directas** hacia ellos. Esta es la zona típica para servicios backend, datos y procesamiento, como **MSK** y **Lambda**.
+
+### ¿Qué es un NAT Gateway?
+Un NAT Gateway permite que recursos **en subredes privadas** puedan **iniciar conexiones salientes** hacia Internet o hacia servicios públicos de AWS, sin permitir tráfico entrante desde Internet.
+
+Sin NAT Gateway, una Lambda dentro de VPC puede quedarse sin salida y fallar al invocar servicios como Firehose, Glue o endpoints públicos, resultando en **timeouts**.
+
+---
 
 ## Paso 1: Configuración de red y seguridad
 Para que Kafka funcione, el productor y consumidor deben poder comunicarse con el clúster.
