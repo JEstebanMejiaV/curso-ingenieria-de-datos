@@ -1,4 +1,4 @@
-# Taller Práctico: Fase 3 - Control de Acceso con Lake Formation (Caso E-commerce)
+# Taller: Control de Acceso con Lake Formation (Caso E-commerce)
 
 ## Objetivo
 
@@ -15,7 +15,7 @@ Antes de aplicar la nueva seguridad, cada alumno debe deshabilitar el acceso glo
 1. Ingresar a la consola de **AWS Lake Formation**.
 2. En el panel de navegación izquierdo, bajo **Permissions**, seleccionar **Administrative roles and tasks**.
 3. En la sección **Data lake administrators**, hacer clic en **Choose administrators**.
-4. Seleccionar el rol federado que están usando actualmente en Skill Builder (usualmente `AWSReservedSSO_...` o `TeamRole`) y hacer clic en **Save**.
+4. Seleccionar el rol federado que están usando actualmente (usualmente `AWSReservedSSO_...` o `TeamRole`) y hacer clic en **Save**.
 
 ### 1.2. Deshabilitar el control exclusivo de IAM
 
@@ -53,7 +53,7 @@ Lake Formation necesita saber dónde están los datos físicos para poder gobern
 
 ## Parte 3: Aplicación de Seguridad Granular (Columna y Fila)
 
-Aquí los alumnos configurarán los permisos para un rol de consumidor de datos. Asumiremos que previamente crearon (o se les aprovisionó) un rol en IAM llamado `Rol_Analista_Datos`.
+Configurarán los permisos para un rol de consumidor de datos. Asumiremos que previamente crearon (o se les aprovisionó) un rol en IAM llamado `Rol_Analista_Datos`.
 
 ### 3.1. Seguridad a Nivel de Columna (Ocultar PII)
 
@@ -100,7 +100,7 @@ El paso final es comprobar que las reglas se aplican correctamente al consultar 
 
 ### 4.1. Configurar la sesión del Analista
 
-1. Hacer que los alumnos asuman el rol `Rol_Analista_Datos` (o utilicen las credenciales de ese usuario en su entorno).
+1. Asuman el rol `Rol_Analista_Datos` (o utilicen las credenciales de ese usuario en su entorno).
 2. Navegar a la consola de **Amazon Athena**.
 3. Asegurarse de que el entorno de Athena tiene un bucket de resultados configurado en **Settings**.
 
@@ -119,7 +119,7 @@ SELECT * FROM ecommerce_db.transacciones_clientes LIMIT 100;
 
 #### Prueba de fallo esperado
 
-Pedir a los alumnos que ejecuten:
+Ejecutar:
 
 ```sql
 SELECT *
@@ -131,13 +131,3 @@ WHERE pais_origen = 'CO';
 
 ---
 
-## Checklist rápido de validación (opcional para el instructor)
-
-- [ ] Se configuró un **Data Lake Administrator** en Lake Formation.
-- [ ] Se deshabilitó el uso exclusivo de IAM para nuevas bases y tablas.
-- [ ] Se revocaron permisos heredados de `IAMAllowedPrincipals`.
-- [ ] Se registró la ubicación S3 de la capa curated en Lake Formation.
-- [ ] Se otorgó acceso por columnas excluyendo PII (`nombre_cliente`, `email_cliente`).
-- [ ] Se creó y aplicó el filtro de filas `filtro_ventas_panama`.
-- [ ] Athena devuelve datos solo de Panamá (`PA`).
-- [ ] Athena no muestra columnas PII al rol analista.

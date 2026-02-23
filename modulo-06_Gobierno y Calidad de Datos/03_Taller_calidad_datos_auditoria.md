@@ -15,7 +15,7 @@ Implementar reglas automáticas para validar la integridad de las transacciones 
 
 ## Parte 1: Implementación de Reglas de Calidad de Datos (AWS Glue Data Quality)
 
-En lugar de escribir scripts complejos, los alumnos usarán el lenguaje declarativo de **Glue Data Quality** (basado en Deequ) para evaluar si los datos de e-commerce cumplen con las reglas de negocio.
+En lugar de escribir scripts complejos, se usarael lenguaje declarativo de **Glue Data Quality** (basado en Deequ) para evaluar si los datos de e-commerce cumplen con las reglas de negocio.
 
 ### 1.1. Crear el conjunto de reglas (Ruleset)
 
@@ -68,9 +68,8 @@ s3://data-lake-curso-[id-alumno]/data-quality-results/
 
 #### Prueba de fallo (opcional)
 
-Si quieres que los alumnos vean un fallo real:
 
-- Pídeles que suban un nuevo `.csv` con una fila donde `monto_total = -50.00`.
+- Subir un nuevo `.csv` con una fila donde `monto_total = -50.00`.
 - Volver a ejecutar la evaluación del ruleset.
 - Verificar que la regla `ColumnValues "monto_total" > 0` falle.
 
@@ -104,7 +103,7 @@ GetDataAccess
 
 ### 2.3. Configurar auditoría directamente en Athena (opcional pero potente)
 
-Si quieres llevar a los alumnos un paso más allá, indícales cómo consultar los logs de CloudTrail usando SQL en Athena.
+Consultar los logs de CloudTrail usando SQL en Athena.
 
 1. En **CloudTrail > Event history**, hacer clic en **Create Athena table** (arriba a la derecha).
 2. Seleccionar el bucket S3 donde CloudTrail guarda los logs (si está configurado en el entorno de Skill Builder).
@@ -124,24 +123,4 @@ LIMIT 10;
 ```
 
 ---
-
-## Resultados esperados del taller
-
-- Los alumnos crean y ejecutan un **ruleset de Glue Data Quality** sobre `transacciones_clientes`.
-- Los alumnos interpretan correctamente el resultado de reglas **Passed/Failed**.
-- Los alumnos localizan eventos `GetDataAccess` en **CloudTrail**.
-- Los alumnos identifican en el JSON del evento:
-  - quién accedió (`userIdentity.arn`)
-  - a qué tabla (`requestParameters.table.name`)
-- (Opcional) Los alumnos consultan logs de CloudTrail desde **Athena** usando SQL.
-
----
-
-## Checklist rápido para el instructor
-
-- [ ] Existe el ruleset `reglas_calidad_ecommerce`.
-- [ ] Se ejecutó al menos una evaluación de calidad.
-- [ ] Se revisaron resultados en **Data quality runs**.
-- [ ] Se buscó el evento `GetDataAccess` en CloudTrail.
-- [ ] Se identificaron campos clave del JSON del evento.
-- [ ] (Opcional) Se creó tabla de CloudTrail en Athena y se ejecutó la consulta SQL.
+s

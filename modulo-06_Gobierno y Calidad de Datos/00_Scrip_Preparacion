@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# ==========================================
+# 1. CONFIGURACIÓN INICIAL (¡Modificar aquí!)
+# ==========================================
+# Reemplaza esto con el nombre exacto del bucket donde subieron el archivo transacciones.csv
+NOMBRE_BUCKET="data-lake-curso-gobierno" 
+RUTA_S3="s3://${NOMBRE_BUCKET}/curated/transacciones/"
+
+# Obtener el ID de la cuenta actual de AWS automáticamente
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+echo "Iniciando preparación del entorno para la cuenta: $ACCOUNT_ID"
+
+# ==========================================
+# 2. CREACIÓN DE ROLES IAM
+# ==========================================
+echo "Creando roles de IAM..."
+
+# Crear política de confianza (Permite a la misma cuenta asumir los roles)
+cat <<EOF > trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::${ACCOUNT_ID}:root" },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+
+# Crear Rol_Admin_Datos
+aws iam create-role --role-name Rol_Admin_Datos --assume-role-policy-document file://trust-policy.json > /dev/null
+aws iam attach-role-policy --role-name Rol_Admin_Datos --policy-arn arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+aws iam attach-role-policy --role-name Rol_Admin_Datos --policy-arn arn:aws:iam::aws:policy/AWSLakeFormationDataAdmin
+
+# Crear Rol_Analista_Consumidor
+aws iam create-role --role-name Rol_Analista_Consumidor --assume-role-policy-document file://trust-policy.json > /dev/null
+aws iam attach-role-policy --role-name Rol_Analista_Consumidor --policy-arn arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+
+echo "Roles creados exitosamente."
+
+# ==========================================
+# 3. CREACIÓN DEL CATÁLOGO EN AWS GLUE
+# ==========================================
+echo "Catalogando datos en AWS Glue..."
+
+# Crear la Base de Datos
+aws glue create-database --database-input '{"Name": "ecommerce_db"}' > /dev/null 2>&1 || echo "La base de datos ya existe."
+
+# Crear la definición de la Tabla en formato JSON
+cat <<EOF > tabla-def.json
+{
+  "Name": "transacciones_clientes",
+  "StorageDescriptor": {
+    "Columns": [
+      {"Name": "id_transaccion", "Type": "string"},
+      {"Name": "fecha", "Type": "string"},
+      {"Name": "id_cliente", "Type": "string"},
+      {"Name": "nombre_cliente", "Type": "string"},
+      {"Name": "email_cliente", "Type": "string"},
+      {"Name": "pais_origen", "Type": "string"},
+      {"Name": "monto_total", "Type": "double"},
+      {"Name": "metodo_pago", "Type": "string"}
+    ],
+    "Location": "${RUTA_S3}",
+    "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+    "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+    "SerdeInfo": {
+      "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+      "Parameters": {
+        "field.delim": ","
+      }
+    }
+  },
+  "TableType": "EXTERNAL_TABLE",
+  "Parameters": {
+    "classification": "csv",
+    "skip.header.line.count": "1"
+  }
+}
+EOF
+
+# Crear la tabla en Glue
+aws glue create-table --database-name ecommerce_db --table-input file://tabla-def.json > /dev/null
+
+echo "Tabla 'transacciones_clientes' catalogada exitosamente apuntando a ${RUTA_S3}."
+echo "¡Entorno base listo para iniciar !"
