@@ -45,7 +45,7 @@ Lake Formation necesita saber dónde están los datos físicos para poder gobern
 
 1. En el panel izquierdo, ir a **Register and ingest > Data lake locations**.
 2. Hacer clic en **Register location**.
-3. En **Amazon S3 path**, examinar y seleccionar la ruta exacta del bucket de la capa Curated (ejemplo: `s3://data-lake-curso-[id-alumno]/curated/transacciones/`).
+3. En **Amazon S3 path**, examinar y seleccionar la ruta exacta del bucket de la capa Curated (ejemplo: `s3://data-lake-gobierno-[id-alumno]/curated/transacciones/`).
 4. En **IAM role**, dejar el valor por defecto: `AWSServiceRoleForLakeFormationDataAccess`.
 5. Hacer clic en **Register location**.
 

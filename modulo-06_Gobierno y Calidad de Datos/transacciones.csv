@@ -1,0 +1,31 @@
+﻿id_transaccion,fecha,id_cliente,nombre_cliente,email_cliente,pais_origen,monto_total,metodo_pago
+TXN-1001,2023-08-15T14:32:00Z,C-4921,Ricardo Silva,ricardo.silva@gmail.com,PA,345.50,Tarjeta de Credito
+TXN-1002,2023-08-15T15:10:00Z,C-8832,Maria Fernanda Lopez,maria.lopez@yahoo.com,CO,120.00,PayPal
+TXN-1003,2023-08-16T09:45:00Z,C-1102,John Doe,john.doe@hotmail.com,US,890.99,Transferencia
+TXN-1004,2023-08-16T11:20:00Z,C-3349,Ana Victoria Perez,ana.perez@gmail.com,PA,45.75,Tarjeta de Credito
+TXN-1005,2023-08-17T08:15:00Z,C-9921,Carlos Ruiz,carlos.ruiz@outlook.com,MX,670.00,Transferencia
+TXN-1006,2023-08-17T10:05:00Z,C-4455,Laura Gomez,laura.gomez@gmail.com,PA,210.25,PayPal
+TXN-1007,2023-08-18T16:30:00Z,C-7712,Diego Torres,diego.torres@yahoo.com,CL,55.00,Tarjeta de Credito
+TXN-1008,2023-08-18T17:45:00Z,C-2298,Elena Rojas,elena.rojas@hotmail.com,PE,199.99,Tarjeta de Credito
+TXN-1009,2023-08-19T09:10:00Z,C-5588,Miguel Angel Castro,miguel.castro@gmail.com,PA,1050.00,Transferencia
+TXN-1010,2023-08-19T11:55:00Z,C-6634,Sofia Vargas,sofia.vargas@outlook.com,AR,88.50,PayPal
+TXN-1011,2023-08-20T08:20:00Z,C-1177,Javier Mendoza,javier.mendoza@gmail.com,BR,430.20,Tarjeta de Credito
+TXN-1012,2023-08-20T14:40:00Z,C-8899,Camila Herrera,camila.herrera@yahoo.com,PA,75.00,Tarjeta de Credito
+TXN-1013,2023-08-21T10:15:00Z,C-3322,Andres Morales,andres.morales@hotmail.com,CO,320.80,Transferencia
+TXN-1014,2023-08-21T13:50:00Z,C-4411,Valentina Ortiz,valentina.ortiz@gmail.com,US,150.00,PayPal
+TXN-1015,2023-08-22T09:30:00Z,C-9955,Luis Navarro,luis.navarro@outlook.com,PA,89.99,Tarjeta de Credito
+TXN-1016,2023-08-22T11:10:00Z,C-2244,Gabriela Rios,gabriela.rios@gmail.com,MX,540.50,Transferencia
+TXN-1017,2023-08-23T15:25:00Z,C-7788,Fernando Castillo,fernando.castillo@yahoo.com,PA,215.00,Tarjeta de Credito
+TXN-1018,2023-08-23T16:40:00Z,C-6611,Isabella Vega,isabella.vega@hotmail.com,CL,95.25,PayPal
+TXN-1019,2023-08-24T08:05:00Z,C-1155,Martin Iglesias,martin.iglesias@gmail.com,PE,670.80,Transferencia
+TXN-1020,2023-08-24T10:50:00Z,C-8822,Daniela Salazar,daniela.salazar@outlook.com,PA,120.00,Tarjeta de Credito
+TXN-1021,2023-08-25T09:15:00Z,C-3388,Alejandro Cruz,alejandro.cruz@gmail.com,AR,450.99,PayPal
+TXN-1022,2023-08-25T11:30:00Z,C-4477,Mariana Dominguez,mariana.dominguez@yahoo.com,BR,85.50,Tarjeta de Credito
+TXN-1023,2023-08-26T14:45:00Z,C-9911,Jorge Medina,jorge.medina@hotmail.com,PA,310.20,Transferencia
+TXN-1024,2023-08-26T16:10:00Z,C-2266,Lucia Aguilar,lucia.aguilar@gmail.com,CO,175.00,PayPal
+TXN-1025,2023-08-27T08:20:00Z,C-7744,Pedro Suarez,pedro.suarez@outlook.com,US,990.00,Tarjeta de Credito
+TXN-1026,2023-08-27T10:35:00Z,C-6699,Natalia Paredes,natalia.paredes@gmail.com,PA,65.75,Tarjeta de Credito
+TXN-1027,2023-08-28T15:50:00Z,C-1144,Roberto Franco,roberto.franco@yahoo.com,MX,240.50,Transferencia
+TXN-1028,2023-08-28T17:15:00Z,C-8866,Juliana Acosta,juliana.acosta@hotmail.com,CL,110.00,PayPal
+TXN-1029,2023-08-29T09:40:00Z,C-3355,Hugo Cabrera,hugo.cabrera@gmail.com,PA,580.99,Tarjeta de Credito
+TXN-1030,2023-08-29T11:25:00Z,C-4422,Paula Montes,paula.montes@outlook.com,PE,135.20,Transferencia

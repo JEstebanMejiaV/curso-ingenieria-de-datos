@@ -1,4 +1,4 @@
-# Taller Práctico: Fase 4 - Calidad de Datos (Data Quality) y Auditoría
+# Taller: Calidad de Datos (Data Quality) y Auditoría
 
 ## Objetivo
 
@@ -51,7 +51,7 @@ Rules = [
 3. En **Data quality results output** (opcional pero recomendado), configurar una ruta en S3 para guardar resultados, por ejemplo:
 
 ```text
-s3://data-lake-curso-[id-alumno]/data-quality-results/
+s3://data-lake-gobierno-[id-alumno]/data-quality-results/
 ```
 
 4. Hacer clic en **Run**.
@@ -123,4 +123,3 @@ LIMIT 10;
 ```
 
 ---
-s
