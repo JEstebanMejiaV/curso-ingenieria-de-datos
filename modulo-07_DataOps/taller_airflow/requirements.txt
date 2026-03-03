@@ -1,0 +1,27 @@
+# Apache Airflow y dependencias core
+apache-airflow==2.8.1
+apache-airflow-providers-postgres==5.10.0
+apache-airflow-providers-celery==3.6.0
+
+# Base de datos
+psycopg2-binary==2.9.9
+SQLAlchemy==1.4.51
+
+# Procesamiento de datos
+pandas==2.1.4
+numpy==1.26.3
+
+# Great Expectations para validación de calidad
+great-expectations==0.18.8
+
+# Apache Spark (opcional, para integración)
+pyspark==3.5.0
+
+# Utilidades
+python-dotenv==1.0.0
+pendulum==2.1.2
+Faker==22.0.0
+
+# Testing (opcional)
+pytest==7.4.3
+pytest-mock==3.12.0
