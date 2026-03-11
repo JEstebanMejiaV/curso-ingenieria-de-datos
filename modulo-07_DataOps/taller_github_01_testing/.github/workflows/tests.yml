@@ -1,0 +1,45 @@
+# Workflow de GitHub Actions para ejecutar tests automáticamente
+# Este archivo define cuándo y cómo se ejecutan los tests
+
+name: Tests
+
+# Cuándo se ejecuta este workflow:
+# - Cada vez que haces push a la rama main
+# - Cada vez que creas un pull request hacia main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Definición de los trabajos (jobs) a ejecutar
+jobs:
+  test:
+    # Nombre descriptivo del job
+    name: Ejecutar Tests con Pytest
+    
+    # Sistema operativo donde se ejecutará
+    runs-on: ubuntu-latest
+    
+    # Pasos a ejecutar en secuencia
+    steps:
+      # Paso 1: Descargar el código del repositorio
+      - name: Checkout código
+        uses: actions/checkout@v3
+      
+      # Paso 2: Configurar Python 3.9
+      - name: Configurar Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      # Paso 3: Instalar dependencias
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      # Paso 4: Ejecutar los tests con pytest
+      - name: Ejecutar tests
+        run: |
+          pytest -v
