@@ -1,0 +1,126 @@
+# Configuración para ambiente de desarrollo
+environment: dev
+
+# Rutas de entrada (S3 o local)
+input:
+  pedidos: "s3://logidata-dev-raw/pedidos/"
+  entregas: "s3://logidata-dev-raw/entregas/"
+  clientes: "s3://logidata-dev-raw/clientes/"
+  catalogo: "s3://logidata-dev-raw/catalogo/"
+  
+  # Alternativa local para desarrollo
+  local:
+    pedidos: "../Datos/pedidos.csv"
+    entregas: "../Datos/entregas.csv"
+    clientes: "../Datos/clientes.csv"
+    catalogo: "../Datos/catalogo.csv"
+
+# Rutas de salida
+output:
+  curated:
+    orders_enriched: "s3://logidata-dev-curated/orders_enriched/"
+    deliveries_enriched: "s3://logidata-dev-curated/deliveries_enriched/"
+  
+  mart:
+    kpis_daily: "s3://logidata-dev-mart/kpis_delivery_daily/"
+    kpis_by_store: "s3://logidata-dev-mart/kpis_by_store/"
+    kpis_by_driver: "s3://logidata-dev-mart/kpis_by_driver/"
+  
+  quarantine: "s3://logidata-dev-quarantine/"
+  
+  # Alternativa local
+  local:
+    curated: "./output/curated/"
+    mart: "./output/mart/"
+    quarantine: "./output/quarantine/"
+
+# Configuración de Spark
+spark:
+  app_name: "LogiData KPIs ETL - DEV"
+  master: "local[*]"  # Para desarrollo local
+  
+  # Configuraciones de performance
+  config:
+    spark.sql.shuffle.partitions: 50
+    spark.sql.adaptive.enabled: true
+    spark.sql.adaptive.coalescePartitions.enabled: true
+    spark.default.parallelism: 50
+    spark.driver.memory: "2g"
+    spark.executor.memory: "2g"
+    
+    # Configuración para S3
+    spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.DefaultAWSCredentialsProviderChain"
+
+# Particionado
+partitioning:
+  curated:
+    - "event_date"
+  mart:
+    - "event_date"
+
+# Formato de salida
+output_format:
+  curated: "parquet"
+  mart: "parquet"
+  compression: "snappy"
+
+# Reglas de limpieza y validación
+data_quality:
+  # Umbrales de calidad
+  max_null_rate: 0.05  # Máximo 5% de nulos permitidos
+  max_duplicate_rate: 0.01  # Máximo 1% de duplicados
+  
+  # Validaciones de negocio
+  min_otd_threshold: 0.70  # Mínimo 70% OTD esperado en dev
+  max_lead_time_days: 30  # Lead time máximo razonable
+  
+  # Estados válidos
+  valid_order_states:
+    - "Pendiente"
+    - "En Proceso"
+    - "Completado"
+    - "Cancelado"
+  
+  valid_delivery_states:
+    - "Asignado"
+    - "En Ruta"
+    - "Entregado"
+    - "Fallido"
+  
+  # Zonas válidas
+  valid_zones:
+    - "Norte"
+    - "Sur"
+    - "Oriente"
+    - "Occidente"
+    - "Centro"
+
+# KPIs y métricas
+kpis:
+  # Definición de SLA por tipo de entrega (en horas)
+  sla_hours:
+    "Same Day": 8
+    "Next Day": 24
+    "Standard": 48
+    "Express": 4
+  
+  # Umbrales de alerta
+  alerts:
+    otd_critical: 0.85  # Alerta crítica si OTD < 85%
+    otd_warning: 0.90   # Alerta warning si OTD < 90%
+    avg_lead_time_warning: 36  # Alerta si lead time > 36 horas
+
+# Configuración de logs
+logging:
+  level: "INFO"
+  format: "json"
+  output: "console"  # console o file
+  file_path: "./logs/etl_kpis.log"
+
+# Modo de ejecución
+execution:
+  mode: "incremental"  # incremental, full, backfill
+  enable_cache: true
+  enable_broadcast_join: true
+  broadcast_threshold_mb: 10

@@ -1,0 +1,136 @@
+# Configuración para ambiente de producción
+environment: prod
+
+# Rutas de entrada (S3)
+input:
+  pedidos: "s3://logidata-prod-raw/pedidos/"
+  entregas: "s3://logidata-prod-raw/entregas/"
+  clientes: "s3://logidata-prod-raw/clientes/"
+  catalogo: "s3://logidata-prod-raw/catalogo/"
+
+# Rutas de salida
+output:
+  curated:
+    orders_enriched: "s3://logidata-prod-curated/orders_enriched/"
+    deliveries_enriched: "s3://logidata-prod-curated/deliveries_enriched/"
+  
+  mart:
+    kpis_daily: "s3://logidata-prod-mart/kpis_delivery_daily/"
+    kpis_by_store: "s3://logidata-prod-mart/kpis_by_store/"
+    kpis_by_driver: "s3://logidata-prod-mart/kpis_by_driver/"
+  
+  quarantine: "s3://logidata-prod-quarantine/"
+
+# Configuración de Spark
+spark:
+  app_name: "LogiData KPIs ETL - PROD"
+  master: "yarn"  # Para EMR/Glue
+  
+  # Configuraciones de performance optimizadas para producción
+  config:
+    spark.sql.shuffle.partitions: 200
+    spark.sql.adaptive.enabled: true
+    spark.sql.adaptive.coalescePartitions.enabled: true
+    spark.sql.adaptive.skewJoin.enabled: true
+    spark.default.parallelism: 200
+    spark.driver.memory: "4g"
+    spark.executor.memory: "8g"
+    spark.executor.cores: 4
+    spark.dynamicAllocation.enabled: true
+    spark.dynamicAllocation.minExecutors: 2
+    spark.dynamicAllocation.maxExecutors: 20
+    
+    # Configuración para S3
+    spark.hadoop.fs.s3a.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    spark.hadoop.fs.s3a.aws.credentials.provider: "com.amazonaws.auth.DefaultAWSCredentialsProviderChain"
+    spark.hadoop.fs.s3a.fast.upload: true
+    spark.hadoop.fs.s3a.multipart.size: "104857600"  # 100MB
+    
+    # Optimizaciones adicionales
+    spark.sql.files.maxPartitionBytes: "134217728"  # 128MB
+    spark.sql.autoBroadcastJoinThreshold: "10485760"  # 10MB
+
+# Particionado
+partitioning:
+  curated:
+    - "event_date"
+  mart:
+    - "event_date"
+
+# Formato de salida
+output_format:
+  curated: "parquet"
+  mart: "parquet"
+  compression: "snappy"
+
+# Reglas de limpieza y validación
+data_quality:
+  # Umbrales de calidad más estrictos en producción
+  max_null_rate: 0.02  # Máximo 2% de nulos permitidos
+  max_duplicate_rate: 0.005  # Máximo 0.5% de duplicados
+  
+  # Validaciones de negocio
+  min_otd_threshold: 0.85  # Mínimo 85% OTD esperado en prod
+  max_lead_time_days: 30
+  
+  # Estados válidos
+  valid_order_states:
+    - "Pendiente"
+    - "En Proceso"
+    - "Completado"
+    - "Cancelado"
+  
+  valid_delivery_states:
+    - "Asignado"
+    - "En Ruta"
+    - "Entregado"
+    - "Fallido"
+  
+  # Zonas válidas
+  valid_zones:
+    - "Norte"
+    - "Sur"
+    - "Oriente"
+    - "Occidente"
+    - "Centro"
+
+# KPIs y métricas
+kpis:
+  # Definición de SLA por tipo de entrega (en horas)
+  sla_hours:
+    "Same Day": 8
+    "Next Day": 24
+    "Standard": 48
+    "Express": 4
+  
+  # Umbrales de alerta
+  alerts:
+    otd_critical: 0.90  # Alerta crítica si OTD < 90%
+    otd_warning: 0.95   # Alerta warning si OTD < 95%
+    avg_lead_time_warning: 30  # Alerta si lead time > 30 horas
+
+# Configuración de logs
+logging:
+  level: "INFO"
+  format: "json"
+  output: "cloudwatch"  # Enviar logs a CloudWatch
+  log_group: "/aws/logidata/etl-kpis"
+  log_stream_prefix: "prod"
+
+# Modo de ejecución
+execution:
+  mode: "incremental"
+  enable_cache: true
+  enable_broadcast_join: true
+  broadcast_threshold_mb: 10
+
+# Configuración de Redshift (opcional)
+redshift:
+  enabled: false  # Cambiar a true si se quiere cargar a Redshift
+  host: "logidata-prod.xxxxxxxxx.us-east-1.redshift.amazonaws.com"
+  port: 5439
+  database: "logidata"
+  schema: "mart"
+  table: "kpis_delivery_daily"
+  iam_role: "arn:aws:iam::123456789012:role/RedshiftCopyRole"
+  temp_dir: "s3://logidata-prod-temp/redshift/"
