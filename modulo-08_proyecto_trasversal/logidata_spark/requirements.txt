@@ -1,0 +1,23 @@
+# Core dependencies
+pyspark==3.3.2
+py4j==0.10.9.5
+
+# AWS integration
+boto3==1.26.137
+botocore==1.29.137
+
+# Configuration
+pyyaml==6.0
+python-dotenv==1.0.0
+
+# Data validation
+pydantic==2.0.3
+
+# Testing
+pytest==7.3.1
+pytest-cov==4.1.0
+pytest-spark==0.6.0
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
