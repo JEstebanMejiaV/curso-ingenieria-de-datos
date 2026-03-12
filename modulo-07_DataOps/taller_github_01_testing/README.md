@@ -3,10 +3,10 @@
 
 ## Duración Total: 2 horas
 
-- **Paso 1**: Setup y Configuración (30 minutos)
-- **Paso 2**: Tests Básicos con Pytest (30 minutos)
-- **Paso 3**: GitHub Actions y CI (30 minutos)
-- **Paso 4**: Ejercicio Práctico (30 minutos)
+- **Paso 1**: Setup y Configuración 
+- **Paso 2**: Tests Básicos con Pytest 
+- **Paso 3**: GitHub Actions y CI 
+- **Paso 4**: Ejercicio 
 
 
 ### Verificar Instalaciones
@@ -138,7 +138,7 @@ tests/test_basico.py::test_aplicar_descuento_fuera_de_rango PASSED
 ========================= 11 passed in 0.05s ==========================
 ```
 
-### ✅ Checkpoint 1
+### Checkpoint 1
 
 Antes de continuar, verifica que:
 - [ ] El entorno virtual está activado
@@ -146,16 +146,10 @@ Antes de continuar, verifica que:
 - [ ] Todos los tests pasan (11 passed)
 - [ ] Entiendes qué hacen las funciones en `transformations.py`
 
-### 🎓 ¿Qué acabas de aprender?
-
-- Cómo configurar un entorno de desarrollo Python
-- Cómo instalar dependencias con pip
-- Cómo ejecutar tests con pytest
-- La estructura básica de un proyecto con tests
 
 ---
 
-## PASO 2: Tests Básicos con Pytest (30 minutos)
+## PASO 2: Tests Básicos con Pytest 
 
 ### 2.1 Entender el Patrón AAA (Arrange-Act-Assert)
 
@@ -268,7 +262,7 @@ pytest tests/test_mi_primer_test.py -v
 tests/test_mi_primer_test.py::test_aplicar_descuento_50_porciento PASSED
 ```
 
-### ✅ Checkpoint 2
+### Checkpoint 2
 
 Antes de continuar, verifica que:
 - [ ] Entiendes el patrón AAA (Arrange-Act-Assert)
@@ -276,13 +270,7 @@ Antes de continuar, verifica que:
 - [ ] Sabes testear excepciones con pytest.raises
 - [ ] Creaste y ejecutaste tu primer test exitosamente
 
-### 🎓 ¿Qué acabas de aprender?
 
-- El patrón AAA para estructurar tests
-- Cómo usar assertions para verificar resultados
-- Cómo testear que una función lanza excepciones
-- Cómo ejecutar tests específicos
-- Cómo escribir tu propio test desde cero
 
 ---
 
@@ -444,7 +432,7 @@ git push
 
 Ahora verás un ✅ verde en GitHub Actions.
 
-### ✅ Checkpoint 3
+### Checkpoint 3
 
 Antes de continuar, verifica que:
 - [ ] Entiendes qué es CI/CD
@@ -453,17 +441,10 @@ Antes de continuar, verifica que:
 - [ ] Viste el workflow ejecutarse en GitHub Actions
 - [ ] Hiciste un cambio y viste cómo CI detecta errores
 
-### 🎓 ¿Qué acabas de aprender?
-
-- Qué es CI/CD y por qué es importante
-- Cómo funciona GitHub Actions
-- Cómo crear y configurar un workflow
-- Cómo ver los resultados de CI en GitHub
-- Cómo CI detecta errores automáticamente
 
 ---
 
-## PASO 4: Ejercicio Práctico (30 minutos)
+## PASO 4: Ejercicio 
 
 ### 4.1 Objetivo del Ejercicio
 
@@ -628,28 +609,23 @@ Verifica que completaste:
 - [ ] Subiste el código a GitHub
 - [ ] GitHub Actions muestra todos los tests en verde
 
-### 🎓 ¿Qué acabas de aprender?
 
-- Cómo crear una función desde cero con TDD (Test-Driven Development)
-- Cómo escribir tests completos para diferentes casos
-- Cómo usar Git y GitHub para colaborar
-- Cómo CI/CD te ayuda a mantener código de calidad
 
 ---
 
-## 🎉 ¡Felicitaciones!
+## ¡Felicitaciones!
 
 Has completado el taller de Testing y GitHub Actions. Ahora sabes:
 
-✅ Configurar un proyecto Python con tests  
-✅ Escribir tests unitarios con pytest  
-✅ Usar el patrón AAA (Arrange-Act-Assert)  
-✅ Testear excepciones  
-✅ Configurar GitHub Actions para CI  
-✅ Ver y entender resultados de CI en GitHub  
-✅ Aplicar todo en un ejercicio práctico  
+Configurar un proyecto Python con tests  
+Escribir tests unitarios con pytest  
+Usar el patrón AAA (Arrange-Act-Assert)  
+Testear excepciones  
+Configurar GitHub Actions para CI  
+Ver y entender resultados de CI en GitHub  
+Aplicar todo en un ejercicio práctico  
 
-## 📚 Próximos Pasos
+## Próximos Pasos
 
 ### Para Profundizar
 
@@ -675,7 +651,7 @@ Si quieres continuar aprendiendo, consulta el **Taller 2: CI/CD Avanzado y Deplo
 - Tests de integración
 - Validación de calidad de datos
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### Problema: pytest no se encuentra
 
@@ -713,15 +689,3 @@ git config --global user.email "tu@email.com"
 git pull origin main
 ```
 
-## 📞 Soporte
-
-Si tienes preguntas o problemas:
-1. Revisa la sección de Troubleshooting
-2. Consulta la documentación oficial de pytest
-3. Pregunta al instructor del curso
-
----
-
-**¡Gracias por participar en este taller!** 🚀
-
-Recuerda: El testing no es opcional, es una habilidad esencial para cualquier desarrollador profesional.
