@@ -1,0 +1,30 @@
+# Configuración para ambiente de desarrollo
+
+environment: development
+
+debug: true
+
+database:
+  host: localhost
+  port: 5432
+  name: ecommerce_dev
+  url: postgresql://user:pass@localhost:5432/ecommerce_dev
+
+api:
+  key: dev-api-key-12345
+  base_url: http://localhost:8000
+  timeout: 30
+
+logging:
+  level: DEBUG
+  format: json
+  output: console
+
+features:
+  enable_cache: false
+  enable_analytics: false
+  enable_notifications: false
+
+limits:
+  max_items_per_order: 100
+  max_order_value: 10000000

@@ -1,0 +1,30 @@
+# Configuración para ambiente de staging
+
+environment: staging
+
+debug: false
+
+database:
+  host: staging-db.example.com
+  port: 5432
+  name: ecommerce_staging
+  url: postgresql://user:pass@staging-db.example.com:5432/ecommerce_staging
+
+api:
+  key: staging-api-key-67890
+  base_url: https://staging-api.example.com
+  timeout: 60
+
+logging:
+  level: INFO
+  format: json
+  output: cloudwatch
+
+features:
+  enable_cache: true
+  enable_analytics: true
+  enable_notifications: false
+
+limits:
+  max_items_per_order: 100
+  max_order_value: 10000000
