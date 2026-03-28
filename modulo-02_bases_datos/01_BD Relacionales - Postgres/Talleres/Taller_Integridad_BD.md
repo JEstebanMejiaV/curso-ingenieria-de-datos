@@ -45,15 +45,16 @@ Escribe tu propuesta como DDL:
 ```sql
 -- OPCIÓN 1: crear la tabla desde cero con constraints
 DROP TABLE IF EXISTS olist_customers CASCADE;
-
 CREATE TABLE olist_customers (
-    customer_id              VARCHAR(50)      -- COMPLETAR
-    customer_unique_id       VARCHAR(50)      -- COMPLETAR
-    customer_zip_code_prefix INT              -- COMPLETAR
-    customer_city            VARCHAR(100)     -- COMPLETAR
-    customer_state           VARCHAR(10)      -- COMPLETAR
+    customer_id              VARCHAR(50) PRIMARY KEY,     -- COMPLETAR
+    customer_unique_id       VARCHAR(50) UNIQUE NOT NULL     -- COMPLETAR
+    customer_zip_code_prefix INT NOT NULL             -- COMPLETAR
+    customer_city            VARCHAR(100) NOT NULL     -- COMPLETAR
+    customer_state           VARCHAR(10) NOT NULL,     -- COMPLETAR
+    CONSTRAINT chk_zip_postive CHECK(customer_zip_code_prefix > 0),
+    CONSTRAINT chk_state_lenght CHECK (char_lenght(customer_state) = 2);
+) 
     -- COMPLETAR: PRIMARY KEY, UNIQUE, CHECK, etc.
-);
 ```
 
 
@@ -62,9 +63,35 @@ CREATE TABLE olist_customers (
 Si la tabla ya existe **sin constraints**, debes usar `ALTER TABLE`:
 
 ```sql
+-- 1. Primary Key
 ALTER TABLE olist_customers
-    -- COMPLETAR: agregar PRIMARY KEY, NOT NULL, UNIQUE, CHECK, etc.
-;
+    ADD CONSTRAINT pk_customers PRIMARY KEY (customer_id);
+
+-- 2. customer_unique_id: NOT NULL + UNIQUE
+ALTER TABLE olist_customers
+    ALTER COLUMN customer_unique_id SET NOT NULL;
+
+ALTER TABLE olist_customers
+    ADD CONSTRAINT uq_customer_unique_id UNIQUE (customer_unique_id);
+
+-- 3. customer_zip_code_prefix: NOT NULL + CHECK positivo
+ALTER TABLE olist_customers
+    ALTER COLUMN customer_zip_code_prefix SET NOT NULL;
+
+ALTER TABLE olist_customers
+    ADD CONSTRAINT chk_zip_positive CHECK (customer_zip_code_prefix > 0);
+
+-- 4. customer_city: NOT NULL
+ALTER TABLE olist_customers
+    ALTER COLUMN customer_city SET NOT NULL;
+
+-- 5. customer_state: NOT NULL + CHECK longitud = 2
+ALTER TABLE olist_customers
+    ALTER COLUMN customer_state SET NOT NULL;
+
+ALTER TABLE olist_customers
+    ADD CONSTRAINT chk_state_length CHECK (char_length(customer_state) = 2);
+-- COMPLETAR: agregar PRIMARY KEY, NOT NULL, UNIQUE, CHECK, etc.
 ```
 
 ---
@@ -96,11 +123,28 @@ CREATE TABLE IF NOT EXISTS olist_products (
 Escribe tu propuesta como DDL (puedes usar `ALTER TABLE` si la tabla ya existe):
 
 ```sql
+-- 1. Primary Key
 ALTER TABLE olist_products
+    ADD CONSTRAINT pk_products PRIMARY KEY (product_id);
+
+-- 2. Peso positivo 
+ALTER TABLE olist_products
+    ADD CONSTRAINT chk_weight_positive CHECK (product_weight_g >= 0);
+
+-- 3. Largo positivo 
+ALTER TABLE olist_products
+    ADD CONSTRAINT chk_length_positive CHECK (product_length_cm >= 0);
+
+-- 4. Alto positivo 
+ALTER TABLE olist_products
+    ADD CONSTRAINT chk_height_positive CHECK (product_height_cm >= 0);
+
+-- 5. Ancho positivo 
+ALTER TABLE olist_products
+    ADD CONSTRAINT chk_width_positive CHECK (product_width_cm >= 0);
     -- COMPLETAR: agregar PRIMARY KEY (product_id),
     -- NOT NULL a columnas clave,
     -- y un CHECK para validar medidas positivas.
-;
 ```
 
 ---
@@ -148,9 +192,15 @@ CREATE TABLE IF NOT EXISTS olist_orders (
 
 ```sql
 ALTER TABLE olist_orders
+    ADD CONSTRAINT pk_orders PRIMARY KEY(order_id)
     -- COMPLETAR: agregar PRIMARY KEY (order_id);
 
 ALTER TABLE olist_orders
+    ADD CONSTRAINT fk_orders_customers
+    FOREIGN KEY (customer_id)
+    REFERENCES olist_customers (customer_id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE; 
     -- COMPLETAR: agregar FOREIGN KEY (customer_id)
     --             REFERENCES olist_customers (customer_id)
     --             ON DELETE ...;
@@ -188,15 +238,32 @@ CREATE TABLE IF NOT EXISTS olist_order_items (
 
 ```sql
 ALTER TABLE olist_order_items
+    ADD CONSTRAINT pk_order_items(order_id, order_item_id);
     -- COMPLETAR: PRIMARY KEY (order_id, order_item_id) u otra que decidas;
 
 ALTER TABLE olist_order_items
+    ADD CONSTRAINT fk_order_items_orders
+    FOREIGN KEY (order_id)
+    REFERENCES olist_orders (order_id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE;
     -- COMPLETAR: FK de order_id a olist_orders(order_id);
 
 ALTER TABLE olist_order_items
+    ADD CONSTRAINT fk_order_items_products
+    FOREIGN KEY (product_id)
+    REFERENCES olist_products(product_id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE;
     -- COMPLETAR: FK de product_id a olist_products(product_id);
 
+
 ALTER TABLE olist_order_items
+    ADD CONSTRAINT fk_order_items_sellers
+    FOREIGN KEY (seller_id)
+    REFERENCES olist_sellers(seller_id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE;
     -- COMPLETAR: FK de seller_id a olist_sellers(seller_id);
 ```
 
@@ -204,9 +271,13 @@ ALTER TABLE olist_order_items
 #### Actividad 5.2.2 – Debate de políticas de borrado
 
 
-- ¿Es buena idea usar `ON DELETE CASCADE` en la FK de `order_id`?
+- ¿Es buena idea usar `ON DELETE CASCADE` en la FK de `order_id`? 
+    No es buena idea, es muy riesgosa, ya que si se borra un pedido de (olist_orders), automaticamente ser borran todos sus items (olis_order_items)
+    En el futuro puede afectar el historial de pruductos vendidos y metricas
 - ¿Qué pasaría si alguien borra un `order` por error?
+    Se perderia todo el historial de la orden con sus detalles, haciendo imposible reconstruir los detalles que se vendieron en el pedido 
 - ¿Qué alternativas propondrías en un sistema real?
+    Utilizar el `ON DELETE RESTRICT` para proteger la integridad del historial
 
 ---
 
@@ -233,12 +304,19 @@ CREATE TABLE IF NOT EXISTS olist_order_payments (
 
 ```sql
 ALTER TABLE olist_order_payments
+    ADD CONSTRAINT pk_order_payments PRIMARY KEY(order_id, payment_sequential);
     -- COMPLETAR: PRIMARY KEY (order_id, payment_sequential);
 
 ALTER TABLE olist_order_payments
+    ADD CONSTRAINT chk_payment_positive CHECK(payment_value > 0);
     -- COMPLETAR: CHECK para asegurar payment_value > 0;
 
 ALTER TABLE olist_order_payments
+    ADD CONSTRAINT fk_order_payments_orders
+    FOREIGN KEY (order_id)
+    REFERENCES olist_orders(order_id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE;
     -- COMPLETAR: FK de order_id a olist_orders(order_id);
 ```
 
@@ -293,10 +371,13 @@ VALUES ('ORDER-FAKE-001', 'CUST-FAKE-999', 'delivered');
 ## 7. Parte D: Preguntas de reflexión
 
 1. ¿Qué riesgos hay en **no** definir reglas de integridad en una base analítica, si “igual se limpia en el ETL”?
+    Los riesgos que hay en no definir reglas de ingridad son: datos incosistentes, errores silenciosos que puedan pasar desapercibidos, comprometer la trazabilidad y reportes
 2. En un entorno de microservicios, ¿qué ventajas y desventajas ves en:
    - Poner las reglas de integridad solo en la base de datos.
+    Ventajas garantizar integridad, centralizar reglas, Desventajas escalabilidad limitada
    - Ponerlas solo en el código de los servicios.
+    Ventajas flexibilidad, escalacion, Desventaja riesgo de incosistencia, 
    - Tener una combinación de ambas?
-
+    Ventaja equilirbrio, Desventajas mayor complejidad, riesgo duplicacion 
 ---
 
